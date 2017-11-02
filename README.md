@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/TwylaHelps/twyla.kubedeploy.svg?branch=master)](https://travis-ci.org/TwylaHelps/twyla.kubedeploy)
+
 # twyla.kubedeploy
 
 This script is a prototype of a deployment tool targeting Kubernetes
