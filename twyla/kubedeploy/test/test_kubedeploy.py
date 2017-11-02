@@ -21,3 +21,15 @@ class LoadOptionsTest(unittest.TestCase):
         mock_os.path.isfile.return_value = False
         options = kubedeploy.load_options('/service/base/path')
         assert options['namespace'] == 'default'
+
+
+class KubeTests(unittest.TestCase):
+
+    @mock.patch('twyla.kubedeploy.kubernetes.client')
+    def test_get_deployment_when_exists(self, mock_client):
+        kube = kubedeploy.Kube('ns', 'api', None, None)
+        deployment = kube.get_deployment()
+        v1_beta = mock_client.ExtensionsV1beta1Api.return_value
+        assert v1_beta.read_namespaced_deployment.call_count == 1
+        v1_beta.read_namespaced_deployment.assert_called_once_with(
+            name='api', namespace='ns')

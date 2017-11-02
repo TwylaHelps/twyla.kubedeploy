@@ -20,6 +20,7 @@ import git
 class Kube:
     def __init__(self,
                  namespace: str,
+                 deployment_name: str,
                  printer: Callable[[str], int],
                  error_printer: Callable[[str], int]):
         # Initialize Kubernetes config from ~/.kube/config. Thus this assumes
@@ -31,13 +32,13 @@ class Kube:
         self.printer = printer
         self.error_printer = error_printer
         self.environment = None
+        self.deployment_name = deployment_name
 
     def get_deployment(self):
         is_new = False
-        deployment_name = '???'
         try:
             res = self.ext_v1_beta_client.read_namespaced_deployment(
-                name=deployment_name,
+                name=self.deployment_name,
                 namespace=self.namespace)
             return res, is_new
         except kubernetes.client.rest.ApiException as e:
@@ -180,14 +181,6 @@ def error_prompt(msg: str):
     sys.stdout.write(colorama.Fore.RED + PROMPT)
     print(msg)
 
-
-def chdir_to_script():
-    # Change working dir to current script directory
-    script_path = os.path.abspath(__file__)
-    script_dir = os.path.dirname(script_path)
-    os.chdir(script_dir)
-
-    prompt('Working in {}'.format(script_dir))
 
 
 def download_requirements(force: bool=False):
@@ -378,15 +371,15 @@ def cli(ctx: click.Context):
 @click.pass_obj
 def deploy(kube: Kube, registry: str, image: str, branch: str, version: str,
            environment: str, local: bool, dry: bool):
+    options = load_options(os.getcwd())
     if local:
         # Reset branch when using local.
         branch = None
 
-    chdir_to_script()
     if version is None:
         version = head_of(branch, local=local)
 
-    kube = Kube(namespace='???',
+    kube = Kube(namespace=options['namespace'],
                 printer=prompt,
                 error_printer=error_prompt)
     tag = make_tag(registry, image, version)
