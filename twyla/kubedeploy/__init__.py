@@ -11,6 +11,7 @@ import colorama
 import docker
 import kubernetes
 import pip
+import yaml
 
 import docker_registry_client as registry
 import git
@@ -339,6 +340,18 @@ def head_of(branch: str=None, local: bool=False) -> str:
     # At this point the head commit of the first remote tracking branch can be
     # returned as it is the same as the others if they exist.
     return repo.git.rev_parse(remote_refs[0].commit, short=8)
+
+
+def load_options(base_path):
+    """Load the options for a service deployment. base_path is the
+    directory in which the command is called."""
+    config_path = os.path.join(base_path, '.kubedeploy')
+    if os.path.isfile(config_path):
+        with open(config_path, 'r') as config_file:
+            config = yaml.load(config_file.read())
+    else:
+        return {'namespace': 'default'}
+    return config
 
 
 @click.group()
