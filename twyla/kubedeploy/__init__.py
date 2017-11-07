@@ -124,8 +124,8 @@ def fill_deployment_definition(
     return deployment
 
 
-def head_of(branch: str=None, local: bool=False) -> str:
-    repo = git.Repo('.')
+def head_of(working_directory: str, branch: str=None, local: bool=False) -> str:
+    repo = git.Repo(working_directory)
     if branch is None:
         try:
             branch = repo.active_branch
@@ -223,14 +223,15 @@ def cli(ctx: click.Context):
               default=False)
 def deploy(registry: str, image: str, branch: str, version: str,
            environment: str, local: bool, dry: bool):
-    options = load_options(os.getcwd())
+    working_directory = os.getcwd()
+    options = load_options(working_directory)
     if registry is None:
         registry = options['registry']
     if local:
         # Reset branch when using local.
         branch = None
     if version is None:
-        version = head_of(branch, local=local)
+        version = head_of(working_directory, branch, local=local)
     return
     kube = Kube(namespace=options['namespace'],
                 printer=prompt,
