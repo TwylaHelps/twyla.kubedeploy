@@ -12,15 +12,21 @@ class LoadOptionsTest(unittest.TestCase):
     @mock.patch('twyla.kubedeploy.os.path.isfile')
     def test_load_options_file(self, mock_isfile):
         mock_isfile.return_value = True
-        options = kubedeploy.load_options('/service/base/path')
+        options = kubedeploy.load_options('/path/to/great-service')
         assert options['namespace'] == 'ns'
-        mock_isfile.assert_called_once_with('/service/base/path/.kubedeploy')
+        # This is still taken from the default config, and is the
+        # name of dir
+        assert options['service_name'] == 'great-service'
+        mock_isfile.assert_called_once_with('/path/to/great-service/.kubedeploy')
 
-    @mock.patch('twyla.kubedeploy.os')
-    def test_default_values_on_missing_options(self, mock_os):
-        mock_os.path.isfile.return_value = False
+
+    @mock.patch('twyla.kubedeploy.os.path.isfile')
+    def test_default_values_on_missing_options(self, mock_isfile):
+        mock_isfile.return_value = False
         options = kubedeploy.load_options('/service/base/path')
         assert options['namespace'] == 'default'
+        assert options['service_name'] == 'path'
+
 
 
 class KubeTests(unittest.TestCase):

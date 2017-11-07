@@ -191,13 +191,14 @@ def head_of(working_directory: str, branch: str=None, local: bool=False) -> str:
 def load_options(base_path):
     """Load the options for a service deployment. base_path is the
     directory in which the command is called."""
+    default_service_name = base_path.rstrip(os.sep).rsplit(os.sep, 1)[-1]
+    default_options = {'namespace': 'default',
+                       'service_name': default_service_name}
     config_path = os.path.join(base_path, '.kubedeploy')
     if os.path.isfile(config_path):
         with open(config_path, 'r') as config_file:
-            config = yaml.load(config_file.read())
-    else:
-        return {'namespace': 'default'}
-    return config
+            default_options.update(yaml.load(config_file.read()))
+    return default_options
 
 
 @click.group()
@@ -207,7 +208,7 @@ def cli(ctx: click.Context):
 
 
 @cli.command()
-@click.option('--registry', default=None)
+@click.option('--registry')
 @click.option('--image', default='???')
 @click.option('--branch', help='The git branch to deploy. Defaults to master.',
               default='master')
@@ -232,7 +233,6 @@ def deploy(registry: str, image: str, branch: str, version: str,
         branch = None
     if version is None:
         version = head_of(working_directory, branch, local=local)
-    return
     kube = Kube(namespace=options['namespace'],
                 printer=prompt,
                 error_printer=error_prompt)
