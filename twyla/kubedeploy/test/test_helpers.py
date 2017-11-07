@@ -21,7 +21,7 @@ class HeadOfTests(unittest.TestCase):
 
     @mock.patch('twyla.kubedeploy.error_prompt')
     @mock.patch('twyla.kubedeploy.git')
-    def test_head_of_no_branch(self, mock_git, mock_error_prompt):
+    def test_no_matching_remote(self, mock_git, mock_error_prompt):
         repo = mock_git.Repo.return_value
         repo.active_branch = 'the-branch'
         remote = mock.MagicMock()
@@ -31,3 +31,15 @@ class HeadOfTests(unittest.TestCase):
             head = kubedeploy.head_of('/blah')
         mock_error_prompt.assert_called_once_with(
             'No remote tracking branch matching "the-branch" found')
+
+
+    @mock.patch('twyla.kubedeploy.error_prompt')
+    @mock.patch('twyla.kubedeploy.git')
+    def test_matching_remote(self, mock_git, mock_error_prompt):
+        repo = mock_git.Repo.return_value
+        repo.active_branch = 'the-branch'
+        remote = mock.MagicMock()
+        remote.name = 'origin'
+        remote.refs = [Bunch(name='origin/the-branch', commit='githash-remote')]
+        repo.remotes = [remote]
+        head = kubedeploy.head_of('/blah')
