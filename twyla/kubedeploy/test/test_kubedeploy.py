@@ -25,8 +25,8 @@ class LoadOptionsTest(unittest.TestCase):
 
 class KubeTests(unittest.TestCase):
 
-    @mock.patch('twyla.kubedeploy.kubernetes.config')
-    @mock.patch('twyla.kubedeploy.kubernetes.client')
+    @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
+    @mock.patch('twyla.kubedeploy.kube.kubernetes.client')
     def test_get_deployment_when_exists(self, mock_client, _):
         kube = kubedeploy.Kube('ns', 'api', None, None)
         deployment = kube.get_deployment()

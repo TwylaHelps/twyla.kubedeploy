@@ -4,165 +4,18 @@ import os
 import shutil
 import sys
 import tempfile
-from typing import Callable
 
 import click
 import colorama
 import docker
-import kubernetes
+import kubernetes.client
 import pip
 import yaml
 
 import docker_registry_client as registry
 import git
 
-
-class Kube:
-    def __init__(self,
-                 namespace: str,
-                 deployment_name: str,
-                 printer: Callable[[str], int],
-                 error_printer: Callable[[str], int]):
-        # Initialize Kubernetes config from ~/.kube/config. Thus this assumes
-        # you already have a working kubectl setup.
-        kubernetes.config.load_kube_config()
-        self.namespace = namespace
-        self.v1_client = kubernetes.client.CoreV1Api()
-        self.ext_v1_beta_client = kubernetes.client.ExtensionsV1beta1Api()
-        self.printer = printer
-        self.error_printer = error_printer
-        self.environment = None
-        self.deployment_name = deployment_name
-
-    def get_deployment(self):
-        is_new = False
-        try:
-            res = self.ext_v1_beta_client.read_namespaced_deployment(
-                name=self.deployment_name,
-                namespace=self.namespace)
-            return res, is_new
-        except kubernetes.client.rest.ApiException as e:
-            # Create a new deployment if no existing is found
-            if e.status == 404:
-                is_new = True
-                return self.default_deployment(), is_new
-            else:
-                raise e
-
-    def deploy(self, tag: str, environment: str):
-        # Get current deployment and update the relevant information
-        self.printer("Deploying {} to the {} environment"
-                     .format(tag, environment))
-        self.environment = environment
-        deployment, is_new = self.get_deployment()
-        deployment = fill_deployment_definition(deployment,
-                                                tag)
-
-        api_client = kubernetes.client.ExtensionsV1beta1Api()
-        try:
-            if is_new:
-                api_client.create_namespaced_deployment(
-                    body=deployment,
-                    namespace=self.namespace)
-            else:
-                api_client.patch_namespaced_deployment(
-                    name=deployment.metadata.name,
-                    body=deployment,
-                    namespace=self.namespace)
-
-            self.printer("Deployment successful. It may need some time to"
-                         "propagate.")
-        except kubernetes.client.rest.ApiException as e:
-            self.error_printer(e)
-
-    def info(self):
-        kubernetes.config.load_kube_config()
-        deployment, _ = self.get_deployment()
-        self.print_deployment_info('current ???', deployment)
-
-    def print_deployment_info(
-            self,
-            title: str,
-            deployment: kubernetes.client.ExtensionsV1beta1Deployment):
-
-        if deployment.spec is None:
-            self.printer("??? is not deployed.")
-        else:
-            self.printer("{}:".format(title))
-            for c in deployment.spec.template.spec.containers:
-                self.printer('image: {}'.format(c.image), 4)
-
-                # If no deployment exists in the slot, status will be None
-                if deployment.status is None:
-                    self.printer('replicas: no deployment', 4)
-                else:
-                    self.printer('replicas: {}/{}'.format(
-                        deployment.status.ready_replicas,
-                        deployment.status.replicas), 4)
-
-    def default_deployment(self):
-        # NOTE: could be read from a file once this tool becomes a proper
-        # module.
-        default = """
-        {
-            "kind": "Deployment",
-            "apiVersion": "extensions/v1beta1",
-            "metadata": {
-                "name": "???",
-                "namespace": "???",
-                "labels": {
-                    "app": "???"
-                }
-            },
-            "spec": {
-                "replicas": 1,
-                "template": {
-                    "metadata": {
-                        "labels": {
-                            "app": "???"
-                        }
-                    },
-                    "spec": {
-                        "containers": [
-                            {
-                                "name": "???",
-                                "image": "registry/service:version",
-                                "imagePullPolicy": "Always"
-                            }
-                        ],
-                        "restartPolicy": "Always",
-                        "imagePullSecrets": [
-                            {
-                                "name": "???"
-                            }
-                        ]
-                    }
-                },
-                "strategy": {
-                    "type": "RollingUpdate",
-                    "rollingUpdate": {
-                        "maxUnavailable": "1",
-                        "maxSurge": "1"
-                    }
-                }
-            }
-        }
-        """
-
-        api_client = kubernetes.client.ApiClient()
-
-        # Be like Response, my friend!
-        # Implements res.data to make the deserializer work.
-        class Res:
-            def __init__(self, data):
-                self.data = data
-
-        res = Res(data=default)
-
-        return api_client.deserialize(res, 'ExtensionsV1beta1Deployment')
-
-    class DeployException(Exception):
-        pass
+from .kube import Kube
 
 
 # Use a colorized prompt to differenciate output of this script from output
@@ -354,7 +207,7 @@ def cli(ctx: click.Context):
 
 
 @cli.command()
-@click.option('--registry', default='???')
+@click.option('--registry', default=None)
 @click.option('--image', default='???')
 @click.option('--branch', help='The git branch to deploy. Defaults to master.',
               default='master')
@@ -368,17 +221,17 @@ def cli(ctx: click.Context):
               ' service will be used to create, push, and deploy a Docker'
               ' image.',
               default=False)
-@click.pass_obj
-def deploy(kube: Kube, registry: str, image: str, branch: str, version: str,
+def deploy(registry: str, image: str, branch: str, version: str,
            environment: str, local: bool, dry: bool):
     options = load_options(os.getcwd())
+    if registry is None:
+        registry = options['registry']
     if local:
         # Reset branch when using local.
         branch = None
-
     if version is None:
         version = head_of(branch, local=local)
-
+    return
     kube = Kube(namespace=options['namespace'],
                 printer=prompt,
                 error_printer=error_prompt)
