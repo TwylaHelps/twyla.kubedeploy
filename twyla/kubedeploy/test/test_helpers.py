@@ -17,6 +17,7 @@ class HeadOfTests(unittest.TestCase):
         assert head is rev_parse.return_value
         assert rev_parse.called_once_with(mock_git.Repo.return_value.head.commit,
                                           short=8)
+        mock_git.Repo.assert_called_once_with('/blah')
 
 
     @mock.patch('twyla.kubedeploy.error_prompt')
@@ -43,3 +44,4 @@ class HeadOfTests(unittest.TestCase):
         remote.refs = [Bunch(name='origin/the-branch', commit='githash-remote')]
         repo.remotes = [remote]
         head = kubedeploy.head_of('/blah')
+        assert head == repo.git.rev_parse.return_value

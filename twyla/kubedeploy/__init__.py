@@ -180,7 +180,7 @@ def head_of(working_directory: str, branch: str=None, local: bool=False) -> str:
         if seen.keys() != 1:
             error_prompt('Multiple matching remote tracking branches with'
                          ' different commit IDs found. Can not go on. Make'
-                         ' sure requested deployments are inambiguous.')
+                         ' sure requested deployments are unambiguous.')
             sys.exit(1)
 
     # At this point the head commit of the first remote tracking branch can be
