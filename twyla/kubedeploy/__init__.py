@@ -209,7 +209,7 @@ def cli(ctx: click.Context):
 
 @cli.command()
 @click.option('--registry')
-@click.option('--image', default='???')
+@click.option('--image')
 @click.option('--branch', help='The git branch to deploy. Defaults to master.',
               default='master')
 @click.option('--version', help='Version of API to build and deploy. Will'
@@ -226,8 +226,8 @@ def deploy(registry: str, image: str, branch: str, version: str,
            environment: str, local: bool, dry: bool):
     working_directory = os.getcwd()
     options = load_options(working_directory)
-    if registry is None:
-        registry = options['registry']
+    registry = registry or options['registry']
+    image = image or options['service_name']
     if local:
         # Reset branch when using local.
         branch = None
@@ -254,7 +254,7 @@ def deploy(registry: str, image: str, branch: str, version: str,
         prompt('Dry run finished. Not deploying.')
         return
 
-    kube.deploy(tag, environment)
+    kube.deploy(tag)
 
 
 @cli.command()

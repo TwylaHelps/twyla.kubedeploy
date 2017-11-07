@@ -16,7 +16,6 @@ class Kube:
         self.ext_v1_beta_client = kubernetes.client.ExtensionsV1beta1Api()
         self.printer = printer
         self.error_printer = error_printer
-        self.environment = None
         self.deployment_name = deployment_name
 
 
@@ -36,11 +35,8 @@ class Kube:
                 raise e
 
 
-    def deploy(self, tag: str, environment: str):
+    def deploy(self, tag: str):
         # Get current deployment and update the relevant information
-        self.printer("Deploying {} to the {} environment"
-                     .format(tag, environment))
-        self.environment = environment
         deployment, is_new = self.get_deployment()
         deployment = fill_deployment_definition(deployment,
                                                 tag)
