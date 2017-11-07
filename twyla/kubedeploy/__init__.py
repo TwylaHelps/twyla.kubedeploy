@@ -214,7 +214,6 @@ def cli(ctx: click.Context):
               default='master')
 @click.option('--version', help='Version of API to build and deploy. Will'
               'replace if it already exists.')
-@click.option('--environment', default='???')
 @click.option('--dry/--no-dry', help='Run without building, pushing, and'
               ' deploying anything',
               default=False)
@@ -234,6 +233,7 @@ def deploy(registry: str, image: str, branch: str, version: str,
     if version is None:
         version = head_of(working_directory, branch, local=local)
     kube = Kube(namespace=options['namespace'],
+                deployment_name=image,
                 printer=prompt,
                 error_printer=error_prompt)
     tag = make_tag(registry, image, version)
