@@ -58,6 +58,11 @@ class Kube:
         except kubernetes.client.rest.ApiException as e:
             self.error_printer(e)
 
+    @property
+    def current_context(self):
+        return kubernetes.config.list_kube_config_contexts()[1]['name']
+
+
     def info(self):
         kubernetes.config.load_kube_config()
         deployment, _ = self.get_deployment()

@@ -222,7 +222,7 @@ def cli(ctx: click.Context):
               ' image.',
               default=False)
 def deploy(registry: str, image: str, branch: str, version: str,
-           environment: str, local: bool, dry: bool):
+           local: bool, dry: bool):
     working_directory = os.getcwd()
     options = load_options(working_directory)
     registry = registry or options['registry']
@@ -237,7 +237,9 @@ def deploy(registry: str, image: str, branch: str, version: str,
                 printer=prompt,
                 error_printer=error_prompt)
     tag = make_tag(registry, image, version)
-
+    yes_no = input("Deploy {} on cluster {}? [y/N] ".format(tag, kube.current_context))
+    if yes_no not in ['y', 'Y']:
+        return
     if local and not dry:
         download_requirements()
         docker_image('build', tag)
