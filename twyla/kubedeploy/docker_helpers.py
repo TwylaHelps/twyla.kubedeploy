@@ -1,5 +1,8 @@
-import docker
+import os
+import base64
+import json
 
+import docker
 import docker_registry_client as registry
 
 def make_tag(registry: str, name: str, version: str) -> str:
@@ -36,6 +39,7 @@ def docker_image_exists(tag: str) -> bool:
     # Extract the credentials for the docker json.
     domain_part, repository, version = tag_components(tag)
     base64_credentials = docker_auth_data['auths'][domain_part]['auth']
+
     # dXNlcm5hbWU6cGFzc3dvcmQK= -> username:password
     credentials = base64.b64decode(base64_credentials).decode('utf8')
     # username:password -> [username, password]
