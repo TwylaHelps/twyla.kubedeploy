@@ -5,6 +5,9 @@ import json
 import docker
 import docker_registry_client as registry
 
+class DockerException(Exception):
+    pass
+
 def make_tag(registry: str, name: str, version: str) -> str:
     return "{}/{}:{}".format(registry, name, version)
 
@@ -38,7 +41,14 @@ def docker_image_exists(tag: str) -> bool:
 
     # Extract the credentials for the docker json.
     domain_part, repository, version = tag_components(tag)
-    base64_credentials = docker_auth_data['auths'][domain_part]['auth']
+    if domain_part not in docker_auth_data['auths']:
+        raise DockerException("Not authorized for registry {}".format(domain_part))
+
+    if docker_auth_data.get('credsStore', '') == 'osxkeychain':
+        import keyring
+        base64_credentials = keyring.get_password(domain_part, 'twyla')
+    else:
+        base64_credentials = docker_auth_data['auths'][domain_part]['auth']
 
     # dXNlcm5hbWU6cGFzc3dvcmQK= -> username:password
     credentials = base64.b64decode(base64_credentials).decode('utf8')
