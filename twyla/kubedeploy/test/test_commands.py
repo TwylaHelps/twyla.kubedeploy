@@ -4,18 +4,22 @@ from unittest import mock
 import traceback
 
 from click.testing import CliRunner
+import pytest
 
 from twyla import kubedeploy
 
+def default_yes(*_):
+    return 'y'
+
 class DeployCommandTests(unittest.TestCase):
 
-    @mock.patch('twyla.kubedeploy.input')
-    @mock.patch('twyla.kubedeploy.docker_image_exists')
+    @mock.patch('twyla.kubedeploy.input', new=default_yes)
+    @mock.patch('twyla.kubedeploy.docker_helpers.docker_image_exists')
     @mock.patch('twyla.kubedeploy.Kube')
     @mock.patch('twyla.kubedeploy.head_of')
     @mock.patch('twyla.kubedeploy.load_options')
     def test_deploy_master_head(self, mock_load_options, mock_head_of, mock_Kube,
-                                mock_docker_exists, mock_input):
+                                mock_docker_exists):
         """When passed no arguments, the deploy command deploys head of
         master"""
         mock_load_options.return_value = {
@@ -25,7 +29,6 @@ class DeployCommandTests(unittest.TestCase):
         }
         mock_head_of.return_value = 'githash'
         mock_docker_exists.return_value = True
-        mock_input.return_value = 'y'
         runner = CliRunner()
         result = runner.invoke(kubedeploy.deploy)
         if result.exception:
@@ -46,7 +49,7 @@ class DeployCommandTests(unittest.TestCase):
 
 
     @mock.patch('twyla.kubedeploy.input')
-    @mock.patch('twyla.kubedeploy.docker_image_exists')
+    @mock.patch('twyla.kubedeploy.docker_helpers.docker_image_exists')
     @mock.patch('twyla.kubedeploy.Kube')
     @mock.patch('twyla.kubedeploy.head_of')
     @mock.patch('twyla.kubedeploy.load_options')
@@ -70,3 +73,34 @@ class DeployCommandTests(unittest.TestCase):
             self.fail()
         kube = mock_Kube.return_value
         assert kube.deploy.call_count == 0
+
+
+
+    @mock.patch('twyla.kubedeploy.error_prompt')
+    @mock.patch('twyla.kubedeploy.input', new=default_yes)
+    @mock.patch('twyla.kubedeploy.docker_helpers.docker_image_exists')
+    @mock.patch('twyla.kubedeploy.Kube')
+    @mock.patch('twyla.kubedeploy.head_of')
+    @mock.patch('twyla.kubedeploy.load_options')
+    def test_abort_on_missing_image(self, mock_load_options, mock_head_of, mock_Kube,
+                                    mock_docker_exists, mock_error_prompt):
+        """When user enters something other than y or Y, deploy should be
+        aborted.
+        """
+        mock_load_options.return_value = {
+            'registry': 'myown.private.registry',
+            'service_name': 'test-service',
+            'namespace': 'anamespace'
+        }
+        mock_head_of.return_value = 'githash'
+        mock_docker_exists.return_value = False
+        runner = CliRunner()
+        result = runner.invoke(kubedeploy.deploy)
+        # Not checking for the exception on result.exception here,
+        # because SystemExit is validly raised for sys.exit(1) on
+        # missing image
+        kube = mock_Kube.return_value
+        assert kube.deploy.call_count == 0
+        assert mock_error_prompt.call_count == 1
+        mock_error_prompt.assert_called_once_with(
+            "Image not found: myown.private.registry/test-service:githash")

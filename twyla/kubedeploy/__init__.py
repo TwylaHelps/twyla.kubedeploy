@@ -220,7 +220,7 @@ def push(registry: str, image: str, version: str):
         version = head_of(None, local=True)
 
     tag = docker_helpers.make_tag(registry, image, version)
-    docker_image('push', tag)
+    docker_helpers.docker_image('push', tag)
 
 
 @cli.command()
