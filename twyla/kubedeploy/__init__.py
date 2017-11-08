@@ -107,22 +107,6 @@ def docker_image_exists(tag: str) -> bool:
     return version in client.repository(repository).tags()
 
 
-def fill_deployment_definition(
-        deployment: kubernetes.client.ExtensionsV1beta1Deployment,
-        tag: str):
-    deployment_name = '???'
-
-    # Set name
-    deployment.metadata.name = deployment_name
-    deployment.spec.template.metadata.labels['name'] = deployment_name
-    deployment.spec.revisionHistoryLimit = 5
-
-    # Set image. For now just grab the first container as there is only one
-    # TODO: find a way to properly decide on the container to update here
-    deployment.spec.template.spec.containers[0].image = tag
-
-    return deployment
-
 
 def head_of(working_directory: str, branch: str=None, local: bool=False) -> str:
     repo = git.Repo(working_directory)

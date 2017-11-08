@@ -38,8 +38,7 @@ class Kube:
     def deploy(self, tag: str):
         # Get current deployment and update the relevant information
         deployment, is_new = self.get_deployment()
-        deployment = fill_deployment_definition(deployment,
-                                                tag)
+        deployment = self.fill_deployment_definition(deployment, tag)
 
         api_client = kubernetes.client.ExtensionsV1beta1Api()
         try:
@@ -53,7 +52,7 @@ class Kube:
                     body=deployment,
                     namespace=self.namespace)
 
-            self.printer("Deployment successful. It may need some time to"
+            self.printer("Deployment successful. It may need some time to "
                          "propagate.")
         except kubernetes.client.rest.ApiException as e:
             self.error_printer(e)
@@ -66,7 +65,8 @@ class Kube:
     def info(self):
         kubernetes.config.load_kube_config()
         deployment, _ = self.get_deployment()
-        self.print_deployment_info('current ???', deployment)
+        self.print_deployment_info('Current {}'.format(self.deployment_name),
+                                   deployment)
 
     def print_deployment_info(
             self,
@@ -148,3 +148,18 @@ class Kube:
         res = Res(data=default)
 
         return api_client.deserialize(res, 'ExtensionsV1beta1Deployment')
+
+    def fill_deployment_definition(
+            self,
+            deployment: kubernetes.client.ExtensionsV1beta1Deployment,
+            tag: str):
+        # Set name
+        deployment.metadata.name = self.deployment_name
+        deployment.spec.template.metadata.labels['name'] = self.deployment_name
+        deployment.spec.revisionHistoryLimit = 5
+
+        # Set image. For now just grab the first container as there is only one
+        # TODO: find a way to properly decide on the container to update here
+        deployment.spec.template.spec.containers[0].image = tag
+
+        return deployment
