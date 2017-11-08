@@ -1,7 +1,8 @@
 from setuptools import setup
 
 dependencies = ['click', 'colorama', 'docker',
-                'kubernetes', 'docker-registry-client', 'GitPython', 'pyyaml']
+                'kubernetes', 'docker-registry-client',
+                'GitPython', 'pyyaml']
 
 setup(
     name="twyla.kubedeploy",
@@ -16,7 +17,7 @@ setup(
     packages=["twyla.kubedeploy"],
     entry_points={
         'console_scripts': [
-            'kubedeploy = twyla.kubedeploy:deploy'
+            'kubedeploy = twyla.kubedeploy:cli'
         ]
     },
     url="https://bitbucket.org/twyla/twyla.kubedeploy",
