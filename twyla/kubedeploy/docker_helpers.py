@@ -5,6 +5,8 @@ import json
 import docker
 import docker_registry_client as registry
 
+MACOS_KEYCHAIN_CMD = 'security find-internet-password -l "Docker Credentials" -s "{}" -w'
+
 class DockerException(Exception):
     pass
 
