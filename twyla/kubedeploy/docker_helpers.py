@@ -1,11 +1,13 @@
 import os
 import base64
 import json
+import subprocess
 
 import docker
 import docker_registry_client as registry
 
-MACOS_KEYCHAIN_CMD = 'security find-internet-password -l "Docker Credentials" -s "{}" -w'
+MACOS_KEYCHAIN_CMD = ['security', 'find-internet-password', '-l',
+                      'Docker Credentials', '-w', '-s']
 
 class DockerException(Exception):
     pass
@@ -47,11 +49,10 @@ def docker_image_exists(tag: str) -> bool:
         raise DockerException("Not authorized for registry {}".format(domain_part))
 
     if docker_auth_data.get('credsStore', '') == 'osxkeychain':
-        import keyring
-        base64_credentials = keyring.get_password(domain_part, 'twyla')
+        keychain_cmd = MACOS_KEYCHAIN_CMD + [domain_part]
+        base64_credentials = subprocess.check_output(keychain_cmd).decode('utf-8')
     else:
         base64_credentials = docker_auth_data['auths'][domain_part]['auth']
-
     # dXNlcm5hbWU6cGFzc3dvcmQK= -> username:password
     credentials = base64.b64decode(base64_credentials).decode('utf8')
     # username:password -> [username, password]
