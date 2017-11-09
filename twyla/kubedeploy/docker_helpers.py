@@ -1,7 +1,7 @@
 import os
 import base64
 import json
-import subprocess
+from subprocess import Popen, PIPE, STDOUT
 
 import docker
 import docker_registry_client as registry
@@ -21,6 +21,14 @@ def tag_components(tag: str) -> (str, str, str):
     repository, version = rest.split(':', 1)
 
     return domain, repository, version
+
+def get_macos_credentials(domain):
+    keychain_cmd = ["docker-credential-osxkeychain", "get"]
+    p = Popen(keychain_cmd, stdout=PIPE, stdin=PIPE, stderr=STDOUT)
+    credentials_json, _ = p.communicate(input=domain.encode('utf-8'))
+    credentials = json.loads(credentials_json.decode('utf-8'))
+    return credentials['Username'], credentials['Secret']
+
 
 
 def docker_image(op: str, tag: str):
@@ -49,15 +57,13 @@ def docker_image_exists(tag: str) -> bool:
         raise DockerException("Not authorized for registry {}".format(domain_part))
 
     if docker_auth_data.get('credsStore', '') == 'osxkeychain':
-        keychain_cmd = MACOS_KEYCHAIN_CMD + [domain_part]
-        base64_credentials = subprocess.check_output(keychain_cmd).decode('utf-8')
+        username, password = get_macos_credentials(domain_part)
     else:
         base64_credentials = docker_auth_data['auths'][domain_part]['auth']
-    # dXNlcm5hbWU6cGFzc3dvcmQK= -> username:password
-    credentials = base64.b64decode(base64_credentials).decode('utf8')
-    # username:password -> [username, password]
-    username, password = credentials.split(':', 1)
-
+        # dXNlcm5hbWU6cGFzc3dvcmQK= -> username:password
+        credentials = base64.b64decode(base64_credentials).decode('utf8')
+        # username:password -> [username, password]
+        username, password = credentials.split(':', 1)
     client = registry.DockerRegistryClient("https://{}".format(domain_part),
                                            username=username,
                                            password=password)
