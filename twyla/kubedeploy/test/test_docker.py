@@ -15,6 +15,13 @@ DOCKER_CONF = json.dumps({
     }
 })
 
+MACOS_DOCKER_CONF = json.dumps({
+    "auths": {
+        "myown.private.registry": {},
+    },
+    "credsStore": "osxkeychain"
+})
+
 class DockerTests(unittest.TestCase):
 
     def test_make_tag(self):
@@ -71,3 +78,15 @@ class DockerTests(unittest.TestCase):
         communicate.assert_called_once_with(input=b'myown.private.registry')
         assert username == 'tim_toddler'
         assert secret == 'mysecret'
+
+
+    @mock.patch('twyla.kubedeploy.docker_helpers.open',
+                new=mock.mock_open(read_data=MACOS_DOCKER_CONF))
+    @mock.patch('twyla.kubedeploy.docker_helpers.registry')
+    @mock.patch('twyla.kubedeploy.docker_helpers.get_macos_credentials')
+    def test_docker_image_exists_on_macos(self, mock_credentials, mock_client):
+        mock_credentials.return_value = 'tim_toddler', 'mysecret'
+        mock_client.repository.return_value.tags.return_value = ['678fg', '123gf']
+        exists = docker_helpers.docker_image_exists(
+            'myown.private.registry/the-service:678fg')
+        mock_credentials.assert_called_once_with('myown.private.registry')
