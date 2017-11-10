@@ -2,6 +2,7 @@ import unittest
 from unittest import mock
 import json
 import base64
+from subprocess import PIPE, STDOUT
 
 from twyla.kubedeploy import docker_helpers
 
@@ -58,4 +59,15 @@ class DockerTests(unittest.TestCase):
 
     @mock.patch('twyla.kubedeploy.docker_helpers.Popen')
     def test_get_macos_credentials(self, mock_popen):
-        docker_helpers.get_macos_credentials('myown.private.registry')
+        creds = json.dumps({
+            'Username': 'tim_toddler', 'Secret': 'mysecret'
+        }).encode('utf-8')
+        communicate = mock_popen.return_value.communicate
+        communicate.return_value = (creds, None)
+        username, secret = docker_helpers.get_macos_credentials('myown.private.registry')
+        mock_popen.assert_called_once_with(
+            ['docker-credential-osxkeychain', 'get'],
+            stdout=PIPE, stdin=PIPE, stderr=STDOUT)
+        communicate.assert_called_once_with(input=b'myown.private.registry')
+        assert username == 'tim_toddler'
+        assert secret == 'mysecret'
