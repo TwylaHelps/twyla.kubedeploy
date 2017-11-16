@@ -1,5 +1,9 @@
 import unittest
 from unittest import mock
+
+import pytest
+from kubernetes.client.rest import ApiException
+
 from twyla import kubedeploy
 
 CONFIG = """
@@ -40,3 +44,13 @@ class KubeTests(unittest.TestCase):
         assert v1_beta.read_namespaced_deployment.call_count == 1
         v1_beta.read_namespaced_deployment.assert_called_once_with(
             name='api', namespace='ns')
+
+
+    @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
+    @mock.patch('twyla.kubedeploy.kube.kubernetes.client.ExtensionsV1beta1Api')
+    def test_get_deployment_missing(self, mock_client, _):
+        v1_beta = mock_client.return_value
+        v1_beta.read_namespaced_deployment.side_effect = ApiException(status=404)
+        kube = kubedeploy.Kube('ns', 'api', None, None)
+        with pytest.raises(kubedeploy.KubeException) as context:
+            deployment = kube.get_deployment()

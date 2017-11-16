@@ -2,6 +2,9 @@ from typing import Callable
 
 import kubernetes
 
+class KubeException(Exception):
+    pass
+
 class Kube:
     def __init__(self,
                  namespace: str,
@@ -29,8 +32,8 @@ class Kube:
         except kubernetes.client.rest.ApiException as e:
             # Create a new deployment if no existing is found
             if e.status == 404:
-                is_new = True
-                return self.default_deployment(), is_new
+                msg = "No deployment found for {}".format(self.deployment_name)
+                raise KubeException(msg) from None
             else:
                 raise e
 
@@ -88,66 +91,6 @@ class Kube:
                         deployment.status.ready_replicas,
                         deployment.status.replicas), 4)
 
-    def default_deployment(self):
-        # NOTE: could be read from a file once this tool becomes a proper
-        # module.
-        default = """
-        {
-            "kind": "Deployment",
-            "apiVersion": "extensions/v1beta1",
-            "metadata": {
-                "name": "???",
-                "namespace": "???",
-                "labels": {
-                    "app": "???"
-                }
-            },
-            "spec": {
-                "replicas": 1,
-                "template": {
-                    "metadata": {
-                        "labels": {
-                            "app": "???"
-                        }
-                    },
-                    "spec": {
-                        "containers": [
-                            {
-                                "name": "???",
-                                "image": "registry/service:version",
-                                "imagePullPolicy": "Always"
-                            }
-                        ],
-                        "restartPolicy": "Always",
-                        "imagePullSecrets": [
-                            {
-                                "name": "???"
-                            }
-                        ]
-                    }
-                },
-                "strategy": {
-                    "type": "RollingUpdate",
-                    "rollingUpdate": {
-                        "maxUnavailable": "1",
-                        "maxSurge": "1"
-                    }
-                }
-            }
-        }
-        """
-
-        api_client = kubernetes.client.ApiClient()
-
-        # Be like Response, my friend!
-        # Implements res.data to make the deserializer work.
-        class Res:
-            def __init__(self, data):
-                self.data = data
-
-        res = Res(data=default)
-
-        return api_client.deserialize(res, 'ExtensionsV1beta1Deployment')
 
     def fill_deployment_definition(
             self,

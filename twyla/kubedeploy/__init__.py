@@ -12,7 +12,7 @@ import yaml
 
 import git
 
-from .kube import Kube
+from .kube import Kube, KubeException
 from . import docker_helpers
 
 
