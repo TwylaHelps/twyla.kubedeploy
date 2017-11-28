@@ -10,7 +10,7 @@ DOCKER_CREDENTIALS = "tim_toddler:crappy password"
 DOCKER_CONF = json.dumps({
     "auths": {
         "myown.private.registry": {
-	    "auth": str(base64.b64encode(DOCKER_CREDENTIALS.encode('utf-8')).decode('utf-8'))
+            "auth": str(base64.b64encode(DOCKER_CREDENTIALS.encode('utf-8')).decode('utf-8'))
         }
     }
 })

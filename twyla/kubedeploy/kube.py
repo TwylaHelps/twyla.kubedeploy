@@ -2,8 +2,10 @@ from typing import Callable
 
 import kubernetes
 
+
 class KubeException(Exception):
     pass
+
 
 class Kube:
     def __init__(self,

@@ -1,16 +1,19 @@
-import os
 import base64
 import json
-from subprocess import Popen, PIPE, STDOUT
+import os
+from subprocess import PIPE, STDOUT, Popen
 
 import docker
 import docker_registry_client as registry
+from twyla.kubedeploy.prompt import prompt
 
 MACOS_KEYCHAIN_CMD = ['security', 'find-internet-password', '-l',
                       'Docker Credentials', '-w', '-s']
 
+
 class DockerException(Exception):
     pass
+
 
 def make_tag(registry: str, name: str, version: str) -> str:
     return "{}/{}:{}".format(registry, name, version)
@@ -22,13 +25,13 @@ def tag_components(tag: str) -> (str, str, str):
 
     return domain, repository, version
 
+
 def get_macos_credentials(domain):
     keychain_cmd = ["docker-credential-osxkeychain", "get"]
     p = Popen(keychain_cmd, stdout=PIPE, stdin=PIPE, stderr=STDOUT)
     credentials_json, _ = p.communicate(input=domain.encode('utf-8'))
     credentials = json.loads(credentials_json.decode('utf-8'))
     return credentials['Username'], credentials['Secret']
-
 
 
 def docker_image(op: str, tag: str):

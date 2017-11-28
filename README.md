@@ -105,15 +105,15 @@ result will be sent to the Kubernetes API. The result is the same as calling
 
 ## Todo
 
-- [] improve test coverage
-- [] support config files additionally to command line knobs
-- [] test calls to APIs with `responses`
-- [] rethink interface for printing messages
-- [] dump deployments for use with `kubectl apply -f`
-- [] add support for Kubernetes objects other than `Deployment`
+- [ ] improve test coverage
+- [ ] support config files additionally to command line knobs
+- [ ] test calls to APIs with `responses`
+- [ ] rethink interface for printing messages
+- [ ] dump deployments for use with `kubectl apply -f`
+- [ ] add support for Kubernetes objects other than `Deployment`
 
 
 ## Whishlist
 
-- [] support `rkt`
-- [] support non-Python services when building images
+- [ ] support `rkt`
+- [ ] support non-Python services when building images
