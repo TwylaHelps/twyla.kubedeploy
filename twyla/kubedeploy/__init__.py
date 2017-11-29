@@ -12,6 +12,8 @@ from twyla.kubedeploy.prompt import error_prompt, prompt
 
 
 def download_requirements(force: bool=False):
+    if not os.path.isfile('requirements.txt'):
+        return
     # Create temporary directory as download target for requirements then
     # download to this temporary directory and move it into the docker
     # context. The docker context is the current directory that can not be
