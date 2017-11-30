@@ -39,3 +39,4 @@ pip-selfcheck.json
 .idea
 .cache
 pip-cache
+.coverage
