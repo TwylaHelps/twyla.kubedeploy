@@ -106,14 +106,13 @@ result will be sent to the Kubernetes API. The result is the same as calling
 ## Todo
 
 - [ ] improve test coverage
-- [ ] support config files additionally to command line knobs
-- [ ] test calls to APIs with `responses`
 - [ ] rethink interface for printing messages
 - [ ] dump deployments for use with `kubectl apply -f`
-- [ ] add support for Kubernetes objects other than `Deployment`
+- [ ] add support multi-document `deployment.yml` so other objects can be added (e.g. acompanying services)
 
 
 ## Whishlist
 
+- [ ] support config files additionally to command line knobs
 - [ ] support `rkt`
 - [ ] support non-Python services when building images
