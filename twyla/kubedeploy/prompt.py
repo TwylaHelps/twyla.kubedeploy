@@ -13,6 +13,7 @@ def prompt(msg: str, indent: int=0):
     print(msg)
 
 
-def error_prompt(msg: str):
-    sys.stdout.write(colorama.Fore.RED + PROMPT)
+def error_prompt(msg: str, indent: int=0):
+    indentation = ' ' * indent
+    sys.stdout.write(colorama.Fore.RED + PROMPT + indentation)
     print(msg)
