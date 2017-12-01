@@ -129,6 +129,7 @@ class Kube:
             deployment: kubernetes.client.ExtensionsV1beta1Deployment):
 
         if deployment.spec is None:
+            # NOTE: This code path can not be hit I think?
             self.printer("??? is not deployed.")
         else:
             self.printer("{}:".format(title))

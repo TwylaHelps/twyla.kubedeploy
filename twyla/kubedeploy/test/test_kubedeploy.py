@@ -33,6 +33,13 @@ spec:
         - containerPort: 80
 """
 
+DEPLOYMENT_WITH_REPLICAS = """
+{deployment}
+status:
+  replicas: 4
+  ready_replicas: 3
+""".format(deployment=DEPLOYMENT)
+
 MULTIDOC = """
 ---
 {deployment}
@@ -255,3 +262,61 @@ class KubeTests(unittest.TestCase):
         assert errors.call_count == 1
         (got) = errors.call_args[0][0]
         assert isinstance(got, kube.DeploymentNotFoundException)
+
+
+    @mock.patch('twyla.kubedeploy.kube.open',
+                new=mock.mock_open(read_data=DEPLOYMENT))
+    @mock.patch('twyla.kubedeploy.kube.Kube.get_deployment')
+    @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
+    def test_print_deployment_info(self, _, __):
+        errors = mock.MagicMock()
+        printer = mock.MagicMock()
+        kub = kube.Kube('ns', 'api', printer, errors)
+        deployment = kub.load_deployment_from_file()
+
+        kub.print_deployment_info(title='a title', deployment=deployment)
+
+        printer.assert_has_calls([
+            mock.call('a title:'),
+            mock.call('image: nginx:1.7.9', 4),
+            mock.call('replicas: no deployment', 4)
+        ])
+
+
+    @mock.patch('twyla.kubedeploy.kube.open',
+                new=mock.mock_open(read_data=DEPLOYMENT_WITH_REPLICAS))
+    @mock.patch('twyla.kubedeploy.kube.Kube.get_deployment')
+    @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
+    def test_print_deployment_info_with_replicas(self, _, __):
+        errors = mock.MagicMock()
+        printer = mock.MagicMock()
+        kub = kube.Kube('ns', 'api', printer, errors)
+        deployment = kub.load_deployment_from_file()
+        deployment.status.replicas = 4
+        deployment.status.ready_replicas = 3
+
+        kub.print_deployment_info(title='a title', deployment=deployment)
+
+        printer.assert_has_calls([
+            mock.call('a title:'),
+            mock.call('image: nginx:1.7.9', 4),
+            mock.call('replicas: 3/4', 4)
+        ])
+
+
+    @mock.patch('twyla.kubedeploy.kube.open',
+                new=mock.mock_open(read_data=DEPLOYMENT))
+    @mock.patch('twyla.kubedeploy.kube.Kube.get_deployment')
+    @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
+    def test_print_deployment_info_none(self, _, __):
+        errors = mock.MagicMock()
+        printer = mock.MagicMock()
+        kub = kube.Kube('ns', 'api', printer, errors)
+        deployment = kub.load_deployment_from_file()
+        deployment.spec = None
+
+        kub.print_deployment_info(title='a title', deployment=deployment)
+
+        printer.assert_has_calls([
+            mock.call('??? is not deployed.')
+        ])
