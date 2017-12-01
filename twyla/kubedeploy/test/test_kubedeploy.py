@@ -33,6 +33,29 @@ spec:
         - containerPort: 80
 """
 
+MULTIDOC = """
+---
+{deployment}
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: my-service
+spec:
+  selector:
+    app: MyApp
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 9376
+""".format(deployment=DEPLOYMENT)
+
+MULTIMULTIDOC = """
+---
+{deployment}
+---
+{deployment}
+""".format(deployment=DEPLOYMENT)
 
 class KubeTests(unittest.TestCase):
 
@@ -60,6 +83,35 @@ class KubeTests(unittest.TestCase):
         assert len(res.spec.template.spec.containers) == 1
         assert res.spec.template.spec.containers[0].name == 'nginx'
 
+
+    @mock.patch('twyla.kubedeploy.kube.open',
+                new=mock.mock_open(read_data=MULTIDOC))
+    @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
+    def test_load_multidoc_form_file(self, _):
+        kub = kube.Kube('ns', 'api', None, None)
+        res = kub.load_deployment_from_file()
+        # Assert some basics that hint on success
+        assert isinstance(res, kubernetes.client.ExtensionsV1beta1Deployment)
+        assert res.kind == 'Deployment'
+        assert len(res.spec.template.spec.containers) == 1
+        assert res.spec.template.spec.containers[0].name == 'nginx'
+
+
+    @mock.patch('twyla.kubedeploy.kube.open',
+                new=mock.mock_open(read_data=MULTIMULTIDOC))
+    @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
+    def test_load_too_many_deployments_form_file(self, _):
+        kub = kube.Kube('ns', 'api', None, None)
+        with pytest.raises(kube.MultipleDeploymentDefinitionsException):
+            kub.load_deployment_from_file()
+
+    @mock.patch('twyla.kubedeploy.kube.open',
+                new=mock.mock_open(read_data='---'))
+    @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
+    def test_load_no_deployments_form_file(self, _):
+        kub = kube.Kube('ns', 'api', None, None)
+        with pytest.raises(kube.DeploymentNotFoundException):
+            kub.load_deployment_from_file()
 
     @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
     @mock.patch('twyla.kubedeploy.kube.kubernetes.client')
@@ -130,7 +182,7 @@ class KubeTests(unittest.TestCase):
                 new=mock.mock_open(read_data=DEPLOYMENT))
     @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
     @mock.patch('twyla.kubedeploy.kube.kubernetes.client.ExtensionsV1beta1Api')
-    def test_deployment_error(self, mock_client, _):
+    def test_deployment_api_exception(self, mock_client, _):
         v1_beta = mock_client.return_value
         v1_beta.read_namespaced_deployment.side_effect = ApiException(status=503)
 
@@ -141,6 +193,38 @@ class KubeTests(unittest.TestCase):
         assert errors.call_count == 1
         (got) = errors.call_args[0][0]
         assert isinstance(got, ApiException)
+
+
+    @mock.patch('twyla.kubedeploy.kube.open',
+                new=mock.mock_open(read_data=MULTIMULTIDOC))
+    @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
+    @mock.patch('twyla.kubedeploy.kube.kubernetes.client.ExtensionsV1beta1Api')
+    def test_deployment_too_many_deployments(self, mock_client, _):
+        errors = mock.MagicMock()
+        kub = kube.Kube('ns', 'api', mock.MagicMock(), errors)
+        kub.deploy('myreg/test-service:version')
+
+        assert errors.call_count == 1
+        (got) = errors.call_args[0][0]
+        assert got == 'Only one deployment is currently allowed in deployment.yml'
+
+        mock_client.assert_called_once_with()
+
+
+    @mock.patch('twyla.kubedeploy.kube.open',
+                new=mock.mock_open(read_data='---'))
+    @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
+    @mock.patch('twyla.kubedeploy.kube.kubernetes.client.ExtensionsV1beta1Api')
+    def test_deployment_no_deployments(self, mock_client, _):
+        errors = mock.MagicMock()
+        kub = kube.Kube('ns', 'api', mock.MagicMock(), errors)
+        kub.deploy('myreg/test-service:version')
+
+        assert errors.call_count == 1
+        (got) = errors.call_args[0][0]
+        assert got == 'No deployment definition found in deployment.yml'
+
+        mock_client.assert_called_once_with()
 
 
     @mock.patch('twyla.kubedeploy.kube.open',
