@@ -44,7 +44,7 @@ class Kube:
     def load_deployment_from_file(self):
         with open(self.deployment_template) as fd:
             dict_data = yaml.load(fd)
-            return self.parse_deployment_data(json.dumps(dict_data))
+        return self.parse_deployment_data(json.dumps(dict_data))
 
 
     def get_deployment(self):
