@@ -6,6 +6,12 @@ from unittest import mock
 from click.testing import CliRunner
 from twyla import kubedeploy
 
+REQUIREMENTS = '''
+some_package==1.2.3
+another_package==3.2.1
+git+ssh://git_package==0.0.1
+'''
+
 
 class DeployCommandTests(unittest.TestCase):
 
@@ -105,3 +111,111 @@ class DeployCommandTests(unittest.TestCase):
         assert mock_error_prompt.call_count == 1
         mock_error_prompt.assert_called_once_with(
             "Image not found: myown.private.registry/test-service:githash")
+
+
+    @mock.patch('twyla.kubedeploy.docker_helpers.open',
+                new=mock.mock_open(read_data=REQUIREMENTS))
+    @mock.patch('twyla.kubedeploy.pip')
+    @mock.patch('twyla.kubedeploy.os')
+    @mock.patch('twyla.kubedeploy.prompt')
+    @mock.patch('twyla.kubedeploy.tempfile')
+    @mock.patch('twyla.kubedeploy.shutil')
+    def test_download_requirements_none(self,
+                                        mock_shutil,
+                                        mock_tempfile,
+                                        mock_prompt,
+                                        mock_os,
+                                        mock_pip):
+        mock_os.path.isfile.return_value = False
+
+        kubedeploy.download_requirements()
+
+        mock_os.path.join.assert_not_called()
+
+
+    @mock.patch('twyla.kubedeploy.docker_helpers.open',
+                new=mock.mock_open(read_data=REQUIREMENTS))
+    @mock.patch('twyla.kubedeploy.pip')
+    @mock.patch('twyla.kubedeploy.os')
+    @mock.patch('twyla.kubedeploy.prompt')
+    @mock.patch('twyla.kubedeploy.tempfile')
+    @mock.patch('twyla.kubedeploy.shutil')
+    def test_download_requirements_cache_exists(self,
+                                                mock_shutil,
+                                                mock_tempfile,
+                                                mock_prompt,
+                                                mock_os,
+                                                mock_pip):
+        mock_os.path.isfile.return_value = True
+        mock_os.path.isdir.return_value = True
+        mock_os.path.join.return_value = 'some/joined/path'
+
+        kubedeploy.download_requirements()
+
+        mock_os.path.join.assert_called_once_with(mock.ANY, 'pip-cache')
+        mock_os.path.isdir.assert_called_once_with(mock.ANY)
+        mock_prompt.assert_called_once_with(
+            'pip-cache exists. Skipping download of requirements.')
+        mock_tempfile.mkdtemp.assert_not_called()
+
+
+    @mock.patch('twyla.kubedeploy.docker_helpers.open',
+                new=mock.mock_open(read_data=REQUIREMENTS))
+    @mock.patch('twyla.kubedeploy.pip')
+    @mock.patch('twyla.kubedeploy.os')
+    @mock.patch('twyla.kubedeploy.prompt')
+    @mock.patch('twyla.kubedeploy.tempfile')
+    @mock.patch('twyla.kubedeploy.shutil')
+    def test_download_requirements(self,
+                                   mock_shutil,
+                                   mock_tempfile,
+                                   mock_prompt,
+                                   mock_os,
+                                   mock_pip):
+        mock_os.path.isfile.return_value = True
+        mock_os.path.isdir.return_value = False
+        mock_os.path.join.return_value = 'some/joined/path'
+
+        kubedeploy.download_requirements()
+
+        mock_tempfile.mkdtemp.assert_called_once_with()
+        mock_prompt.assert_called_once_with('Downloading requirements.')
+        mock_pip.main.assert_called_once_with(
+            ['download', '-q', '--dest', mock_tempfile.mkdtemp.return_value])
+        mock_shutil.move.assert_called_once_with(
+            mock_tempfile.mkdtemp.return_value,
+            'some/joined/path')
+
+
+    @mock.patch('twyla.kubedeploy.docker_helpers.open',
+                new=mock.mock_open(read_data=REQUIREMENTS))
+    @mock.patch('twyla.kubedeploy.pip')
+    @mock.patch('twyla.kubedeploy.os')
+    @mock.patch('twyla.kubedeploy.prompt')
+    @mock.patch('twyla.kubedeploy.tempfile')
+    @mock.patch('twyla.kubedeploy.shutil')
+    def test_download_requirements_force(self,
+                                         mock_shutil,
+                                         mock_tempfile,
+                                         mock_prompt,
+                                         mock_os,
+                                         mock_pip):
+        mock_os.path.isfile.return_value = True
+        mock_os.path.isdir.return_value = True
+        mock_os.path.join.return_value = 'some/joined/path'
+
+        kubedeploy.download_requirements(force=True)
+
+        mock_os.path.join.assert_called_once_with(mock.ANY, 'pip-cache')
+        mock_os.path.isdir.assert_called_once_with(mock.ANY)
+        mock_prompt.assert_has_calls([
+            mock.call(
+                'pip-cache exists. Removing for fresh download of requirements.'),
+            mock.call('Downloading requirements.'),
+        ])
+
+        mock_pip.main.assert_called_once_with(
+            ['download', '-q', '--dest', mock_tempfile.mkdtemp.return_value])
+        mock_shutil.move.assert_called_once_with(
+            mock_tempfile.mkdtemp.return_value,
+            'some/joined/path')
