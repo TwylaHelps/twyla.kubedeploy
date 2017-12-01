@@ -1,42 +1,40 @@
 import os
+import traceback
 import unittest
 from unittest import mock
-import traceback
 
 from click.testing import CliRunner
-import pytest
-
 from twyla import kubedeploy
 
-def default_yes(*_):
-    return 'y'
 
 class DeployCommandTests(unittest.TestCase):
 
-    @mock.patch('twyla.kubedeploy.input', new=default_yes)
     @mock.patch('twyla.kubedeploy.docker_helpers.docker_image_exists')
     @mock.patch('twyla.kubedeploy.Kube')
     @mock.patch('twyla.kubedeploy.head_of')
-    @mock.patch('twyla.kubedeploy.load_options')
-    def test_deploy_master_head(self, mock_load_options, mock_head_of, mock_Kube,
+    def test_deploy_master_head(self, mock_head_of, mock_Kube,
                                 mock_docker_exists):
         """When passed no arguments, the deploy command deploys head of
         master"""
-        mock_load_options.return_value = {
-            'registry': 'myown.private.registry',
-            'service_name': 'test-service',
-            'namespace': 'anamespace'
-        }
         mock_head_of.return_value = 'githash'
         mock_docker_exists.return_value = True
         runner = CliRunner()
-        result = runner.invoke(kubedeploy.deploy)
+        result = runner.invoke(kubedeploy.deploy, ['--registry',
+                                                   'myown.private.registry',
+                                                   '--image',
+                                                   'test-service',
+                                                   '--name',
+                                                   'test-deployment',
+                                                   '--namespace',
+                                                   'anamespace'])
         if result.exception:
             print(''.join(traceback.format_exception(*result.exc_info)))
             self.fail()
-        assert mock_load_options.called_once_with(os.getcwd())
+
         # Default branch is master, and local is False
-        mock_head_of.assert_called_once_with(os.getcwd(), 'master', local=False)
+        mock_head_of.assert_called_once_with(os.getcwd(),
+                                             'master',
+                                             local=False)
         mock_Kube.assert_called_once_with(
             namespace='anamespace',
             deployment_name='test-service',
@@ -48,26 +46,28 @@ class DeployCommandTests(unittest.TestCase):
         )
 
 
-    @mock.patch('twyla.kubedeploy.input')
     @mock.patch('twyla.kubedeploy.docker_helpers.docker_image_exists')
     @mock.patch('twyla.kubedeploy.Kube')
     @mock.patch('twyla.kubedeploy.head_of')
-    @mock.patch('twyla.kubedeploy.load_options')
-    def test_abort_on_no(self, mock_load_options, mock_head_of, mock_Kube,
-                         mock_docker_exists, mock_input):
-        """When user enters something other than y or Y, deploy should be
-        aborted.
+    def test_abort_on_no(self,
+                         mock_head_of,
+                         mock_Kube,
+                         mock_docker_exists):
         """
-        mock_load_options.return_value = {
-            'registry': 'myown.private.registry',
-            'service_name': 'test-service',
-            'namespace': 'anamespace'
-        }
+        On dry runs no deployment should be done.
+        """
         mock_head_of.return_value = 'githash'
         mock_docker_exists.return_value = True
-        mock_input.return_value = 'n'
         runner = CliRunner()
-        result = runner.invoke(kubedeploy.deploy)
+        result = runner.invoke(kubedeploy.deploy, ['--registry',
+                                                   'myown.private.registry',
+                                                   '--image',
+                                                   'test-service',
+                                                   '--name',
+                                                   'test-deployment',
+                                                   '--namespace',
+                                                   'anamespace',
+                                                   '--dry'])
         if result.exception:
             print(''.join(traceback.format_exception(*result.exc_info)))
             self.fail()
@@ -77,25 +77,26 @@ class DeployCommandTests(unittest.TestCase):
 
 
     @mock.patch('twyla.kubedeploy.error_prompt')
-    @mock.patch('twyla.kubedeploy.input', new=default_yes)
     @mock.patch('twyla.kubedeploy.docker_helpers.docker_image_exists')
     @mock.patch('twyla.kubedeploy.Kube')
     @mock.patch('twyla.kubedeploy.head_of')
-    @mock.patch('twyla.kubedeploy.load_options')
-    def test_abort_on_missing_image(self, mock_load_options, mock_head_of, mock_Kube,
+    def test_abort_on_missing_image(self, mock_head_of, mock_Kube,
                                     mock_docker_exists, mock_error_prompt):
-        """When user enters something other than y or Y, deploy should be
-        aborted.
         """
-        mock_load_options.return_value = {
-            'registry': 'myown.private.registry',
-            'service_name': 'test-service',
-            'namespace': 'anamespace'
-        }
+        If the image does not exist in the registry then no deployment should
+        be done.
+        """
         mock_head_of.return_value = 'githash'
         mock_docker_exists.return_value = False
         runner = CliRunner()
-        result = runner.invoke(kubedeploy.deploy)
+        runner.invoke(kubedeploy.deploy, ['--registry',
+                                          'myown.private.registry',
+                                          '--image',
+                                          'test-service',
+                                          '--name',
+                                          'test-deployment',
+                                          '--namespace',
+                                          'anamespace'])
         # Not checking for the exception on result.exception here,
         # because SystemExit is validly raised for sys.exit(1) on
         # missing image

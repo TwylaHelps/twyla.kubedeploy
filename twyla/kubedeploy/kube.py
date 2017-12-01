@@ -1,16 +1,21 @@
+import json
 from typing import Callable
 
 import kubernetes
+import yaml
 
-class KubeException(Exception):
+
+class DeploymentNotFoundException(Exception):
     pass
+
 
 class Kube:
     def __init__(self,
                  namespace: str,
                  deployment_name: str,
                  printer: Callable[[str], int],
-                 error_printer: Callable[[str], int]):
+                 error_printer: Callable[[str], int],
+                 deployment_template: str=None):
         # Initialize Kubernetes config from ~/.kube/config. Thus this assumes
         # you already have a working kubectl setup.
         kubernetes.config.load_kube_config()
@@ -20,56 +25,80 @@ class Kube:
         self.printer = printer
         self.error_printer = error_printer
         self.deployment_name = deployment_name
+        self.deployment_template = deployment_template or 'deployment.yml'
+
+
+    def parse_deployment_data(self, data):
+        api_client = kubernetes.client.ApiClient()
+
+        # Be like Response, my friend!
+        # Implements res.data to make the deserializer work.
+        class Res:
+            def __init__(self, data):
+                self.data = data
+
+        res = Res(data=data)
+
+        return api_client.deserialize(res, 'ExtensionsV1beta1Deployment')
+
+    def load_deployment_from_file(self):
+        with open(self.deployment_template) as fd:
+            dict_data = yaml.load(fd)
+        return self.parse_deployment_data(json.dumps(dict_data))
 
 
     def get_deployment(self):
-        is_new = False
         try:
             res = self.ext_v1_beta_client.read_namespaced_deployment(
                 name=self.deployment_name,
                 namespace=self.namespace)
-            return res, is_new
+            return res
         except kubernetes.client.rest.ApiException as e:
             # Create a new deployment if no existing is found
             if e.status == 404:
                 msg = "No deployment found for {}".format(self.deployment_name)
-                raise KubeException(msg) from None
+                raise DeploymentNotFoundException(msg) from None
             else:
                 raise e
 
 
     def deploy(self, tag: str):
         # Get current deployment and update the relevant information
-        deployment, is_new = self.get_deployment()
-        deployment = self.fill_deployment_definition(deployment, tag)
+        deployment = self.fill_deployment_definition(
+            self.load_deployment_from_file(), tag)
 
         api_client = kubernetes.client.ExtensionsV1beta1Api()
         try:
-            if is_new:
-                api_client.create_namespaced_deployment(
-                    body=deployment,
-                    namespace=self.namespace)
-            else:
-                api_client.patch_namespaced_deployment(
-                    name=deployment.metadata.name,
-                    body=deployment,
-                    namespace=self.namespace)
-
-            self.printer("Deployment successful. It may need some time to "
-                         "propagate.")
+            # The call to get the deployment is basically a sentinel to decide
+            # if the deployment definition has to be supplied with patch or
+            # create.
+            self.get_deployment()
+            api_client.patch_namespaced_deployment(
+                name=deployment.metadata.name,
+                body=deployment,
+                namespace=self.namespace)
+            self.printer("Deployment successfully updated.")
+            self.printer("It may need some time to propagate.")
+        except DeploymentNotFoundException as not_found:
+            api_client.create_namespaced_deployment(
+                body=deployment,
+                namespace=self.namespace)
+            self.printer("New deployment successfully created")
+            self.printer("It may need some time to propagate.")
         except kubernetes.client.rest.ApiException as e:
             self.error_printer(e)
-
-    @property
-    def current_context(self):
-        return kubernetes.config.list_kube_config_contexts()[1]['name']
 
 
     def info(self):
         kubernetes.config.load_kube_config()
-        deployment, _ = self.get_deployment()
-        self.print_deployment_info('Current {}'.format(self.deployment_name),
-                                   deployment)
+        try:
+            deployment = self.get_deployment()
+            self.print_deployment_info(
+                'Current {}'.format(self.deployment_name),
+                deployment)
+        except DeploymentNotFoundException as not_found:
+            self.error_printer(not_found)
+
 
     def print_deployment_info(
             self,
