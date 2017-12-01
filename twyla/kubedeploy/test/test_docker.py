@@ -1,16 +1,18 @@
-import unittest
-from unittest import mock
-import json
 import base64
+import json
+import unittest
 from subprocess import PIPE, STDOUT
+from unittest import mock
 
+import pytest
 from twyla.kubedeploy import docker_helpers
 
 DOCKER_CREDENTIALS = "tim_toddler:crappy password"
 DOCKER_CONF = json.dumps({
     "auths": {
         "myown.private.registry": {
-            "auth": str(base64.b64encode(DOCKER_CREDENTIALS.encode('utf-8')).decode('utf-8'))
+            "auth": str(base64.b64encode(
+                DOCKER_CREDENTIALS.encode('utf-8')).decode('utf-8'))
         }
     }
 })
@@ -21,6 +23,7 @@ MACOS_DOCKER_CONF = json.dumps({
     },
     "credsStore": "osxkeychain"
 })
+
 
 class DockerTests(unittest.TestCase):
 
@@ -90,3 +93,34 @@ class DockerTests(unittest.TestCase):
         exists = docker_helpers.docker_image_exists(
             'myown.private.registry/the-service:678fg')
         mock_credentials.assert_called_once_with('myown.private.registry')
+
+
+    @mock.patch('twyla.kubedeploy.docker_helpers.open',
+                new=mock.mock_open(read_data=DOCKER_CONF))
+    @mock.patch('twyla.kubedeploy.docker_helpers.registry')
+    def test_docker_image_exists_no_auth(self, _):
+        with pytest.raises(docker_helpers.DockerException):
+            docker_helpers.docker_image_exists('invalid.private.registry/the-service:678fg')
+
+
+    @mock.patch('twyla.kubedeploy.docker_helpers.docker.from_env')
+    def test_build_docker_image(self, mock_client):
+        docker_helpers.docker_image('build', 'some/tag:version')
+        mock_client.return_value.images.build.assert_called_once_with(
+            tag='some/tag:version', path=mock.ANY)
+        mock_client.return_value.images.push.assert_not_called()
+
+
+    @mock.patch('twyla.kubedeploy.docker_helpers.docker.from_env')
+    def test_push_docker_image(self, mock_client):
+        docker_helpers.docker_image('push', 'some/tag:version')
+        mock_client.return_value.images.push.assert_called_once_with(
+            'some/tag:version')
+        mock_client.return_value.images.build.assert_not_called()
+
+
+    @mock.patch('twyla.kubedeploy.docker_helpers.docker.from_env')
+    def test_invalid_docker_image(self, mock_client):
+        docker_helpers.docker_image('somethingelse', 'some/tag:version')
+        mock_client.return_value.images.push.assert_not_called()
+        mock_client.return_value.images.build.assert_not_called()
