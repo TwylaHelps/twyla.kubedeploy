@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.org/TwylaHelps/twyla.kubedeploy.svg?branch=master)](https://travis-ci.org/TwylaHelps/twyla.kubedeploy)
+[![codecov](https://codecov.io/gh/TwylaHelps/twyla.kubedeploy/branch/master/graph/badge.svg)](https://codecov.io/gh/TwylaHelps/twyla.kubedeploy)
 
 # twyla.kubedeploy
 
