@@ -9,6 +9,10 @@ class DeploymentNotFoundException(Exception):
     pass
 
 
+class MultipleDeploymentDefinitionsException(Exception):
+    pass
+
+
 class Kube:
     def __init__(self,
                  namespace: str,
@@ -43,8 +47,18 @@ class Kube:
 
     def load_deployment_from_file(self):
         with open(self.deployment_template) as fd:
-            dict_data = yaml.load(fd)
-        return self.parse_deployment_data(json.dumps(dict_data))
+            documents = yaml.load_all(fd)
+
+        deployment_data = [doc for doc
+                           in documents
+                           if doc is not None
+                           and doc.get('kind') == 'Deployment']
+        if len(deployment_data) > 1:
+            raise MultipleDeploymentDefinitionsException
+        elif len(deployment_data) < 1:
+            raise DeploymentNotFoundException
+
+        return self.parse_deployment_data(json.dumps(deployment_data[0]))
 
 
     def get_deployment(self):
@@ -64,8 +78,17 @@ class Kube:
 
     def deploy(self, tag: str):
         # Get current deployment and update the relevant information
-        deployment = self.fill_deployment_definition(
-            self.load_deployment_from_file(), tag)
+        try:
+            deployment = self.fill_deployment_definition(
+                self.load_deployment_from_file(), tag)
+        except MultipleDeploymentDefinitionsException as multi:
+            self.error_printer(
+                'Only one deployment is currently allowed in deployment.yml')
+            return
+        except DeploymentNotFoundException as not_found:
+            self.error_printer(
+                'No deployment definition found in deployment.yml')
+            return
 
         api_client = kubernetes.client.ExtensionsV1beta1Api()
         try:

@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.org/TwylaHelps/twyla.kubedeploy.svg?branch=master)](https://travis-ci.org/TwylaHelps/twyla.kubedeploy)
+[![codecov](https://codecov.io/gh/TwylaHelps/twyla.kubedeploy/branch/master/graph/badge.svg)](https://codecov.io/gh/TwylaHelps/twyla.kubedeploy)
 
 # twyla.kubedeploy
 
@@ -108,7 +109,7 @@ result will be sent to the Kubernetes API. The result is the same as calling
 - [ ] improve test coverage
 - [ ] rethink interface for printing messages
 - [ ] dump deployments for use with `kubectl apply -f`
-- [ ] add support multi-document `deployment.yml` so other objects can be added (e.g. acompanying services)
+- [x] support multi-document `deployment.yml` so other objects can be added (e.g. acompanying services)
 
 
 ## Whishlist
