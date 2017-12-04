@@ -40,10 +40,7 @@ status:
   ready_replicas: 3
 """.format(deployment=DEPLOYMENT)
 
-MULTIDOC = """
----
-{deployment}
----
+SERVICE = """
 kind: Service
 apiVersion: v1
 metadata:
@@ -55,7 +52,14 @@ spec:
   - protocol: TCP
     port: 80
     targetPort: 9376
-""".format(deployment=DEPLOYMENT)
+"""
+
+MULTIDOC = """
+---
+{deployment}
+---
+{service}
+""".format(service=SERVICE, deployment=DEPLOYMENT)
 
 MULTIMULTIDOC = """
 ---
@@ -63,6 +67,7 @@ MULTIMULTIDOC = """
 ---
 {deployment}
 """.format(deployment=DEPLOYMENT)
+
 
 class KubeTests(unittest.TestCase):
 
@@ -72,10 +77,22 @@ class KubeTests(unittest.TestCase):
         kub = kube.Kube('ns', 'api', None, None)
         res = kub.parse_deployment_data(data)
         # Assert some basics that hint on success
-        assert isinstance(res, kubernetes.client.ExtensionsV1beta1Deployment)
+        assert isinstance(res, kubernetes.client.AppsV1beta1Deployment)
         assert res.kind == 'Deployment'
         assert len(res.spec.template.spec.containers) == 1
         assert res.spec.template.spec.containers[0].name == 'nginx'
+
+
+    @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
+    def test_parse_service_data(self, _):
+        data = json.dumps(yaml.load(SERVICE))
+        kub = kube.Kube('ns', 'api', None, None)
+        res = kub.parse_service_data(data)
+        # Assert some basics that hint on success
+        assert isinstance(res, kubernetes.client.V1Service)
+        assert res.kind == 'Service'
+        assert len(res.spec.ports) == 1
+        assert res.spec.ports[0].target_port == '9376'
 
 
     @mock.patch('twyla.kubedeploy.kube.open',
@@ -85,7 +102,7 @@ class KubeTests(unittest.TestCase):
         kub = kube.Kube('ns', 'api', None, None)
         res = kub.load_deployment_from_file()
         # Assert some basics that hint on success
-        assert isinstance(res, kubernetes.client.ExtensionsV1beta1Deployment)
+        assert isinstance(res, kubernetes.client.AppsV1beta1Deployment)
         assert res.kind == 'Deployment'
         assert len(res.spec.template.spec.containers) == 1
         assert res.spec.template.spec.containers[0].name == 'nginx'
@@ -98,7 +115,7 @@ class KubeTests(unittest.TestCase):
         kub = kube.Kube('ns', 'api', None, None)
         res = kub.load_deployment_from_file()
         # Assert some basics that hint on success
-        assert isinstance(res, kubernetes.client.ExtensionsV1beta1Deployment)
+        assert isinstance(res, kubernetes.client.AppsV1beta1Deployment)
         assert res.kind == 'Deployment'
         assert len(res.spec.template.spec.containers) == 1
         assert res.spec.template.spec.containers[0].name == 'nginx'
@@ -125,14 +142,14 @@ class KubeTests(unittest.TestCase):
     def test_get_deployment_when_exists(self, mock_client, _):
         kub = kube.Kube('ns', 'api', None, None)
         kub.get_deployment()
-        v1_beta = mock_client.ExtensionsV1beta1Api.return_value
+        v1_beta = mock_client.AppsV1beta1Api.return_value
         assert v1_beta.read_namespaced_deployment.call_count == 1
         v1_beta.read_namespaced_deployment.assert_called_once_with(
             name='api', namespace='ns')
 
 
     @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
-    @mock.patch('twyla.kubedeploy.kube.kubernetes.client.ExtensionsV1beta1Api')
+    @mock.patch('twyla.kubedeploy.kube.kubernetes.client.AppsV1beta1Api')
     def test_get_deployment_missing(self, mock_client, _):
         v1_beta = mock_client.return_value
         v1_beta.read_namespaced_deployment.side_effect = ApiException(status=404)
@@ -142,7 +159,7 @@ class KubeTests(unittest.TestCase):
 
 
     @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
-    @mock.patch('twyla.kubedeploy.kube.kubernetes.client.ExtensionsV1beta1Api')
+    @mock.patch('twyla.kubedeploy.kube.kubernetes.client.AppsV1beta1Api')
     def test_get_deployment_rethrow(self, mock_client, _):
         v1_beta = mock_client.return_value
         v1_beta.read_namespaced_deployment.side_effect = ApiException(status=503)
@@ -154,7 +171,7 @@ class KubeTests(unittest.TestCase):
     @mock.patch('twyla.kubedeploy.kube.open',
                 new=mock.mock_open(read_data=DEPLOYMENT))
     @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
-    @mock.patch('twyla.kubedeploy.kube.kubernetes.client.ExtensionsV1beta1Api')
+    @mock.patch('twyla.kubedeploy.kube.kubernetes.client.AppsV1beta1Api')
     def test_deployment_new(self, mock_client, _):
         v1_beta = mock_client.return_value
         v1_beta.read_namespaced_deployment.side_effect = ApiException(status=404)
@@ -171,7 +188,7 @@ class KubeTests(unittest.TestCase):
     @mock.patch('twyla.kubedeploy.kube.open',
                 new=mock.mock_open(read_data=DEPLOYMENT))
     @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
-    @mock.patch('twyla.kubedeploy.kube.kubernetes.client.ExtensionsV1beta1Api')
+    @mock.patch('twyla.kubedeploy.kube.kubernetes.client.AppsV1beta1Api')
     def test_deployment_exists(self, mock_client, _):
         v1_beta = mock_client.return_value
         v1_beta.read_namespaced_deployment.return_value = 'some_deployment'
@@ -188,7 +205,7 @@ class KubeTests(unittest.TestCase):
     @mock.patch('twyla.kubedeploy.kube.open',
                 new=mock.mock_open(read_data=DEPLOYMENT))
     @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
-    @mock.patch('twyla.kubedeploy.kube.kubernetes.client.ExtensionsV1beta1Api')
+    @mock.patch('twyla.kubedeploy.kube.kubernetes.client.AppsV1beta1Api')
     def test_deployment_api_exception(self, mock_client, _):
         v1_beta = mock_client.return_value
         v1_beta.read_namespaced_deployment.side_effect = ApiException(status=503)
@@ -205,7 +222,7 @@ class KubeTests(unittest.TestCase):
     @mock.patch('twyla.kubedeploy.kube.open',
                 new=mock.mock_open(read_data=MULTIMULTIDOC))
     @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
-    @mock.patch('twyla.kubedeploy.kube.kubernetes.client.ExtensionsV1beta1Api')
+    @mock.patch('twyla.kubedeploy.kube.kubernetes.client.AppsV1beta1Api')
     def test_deployment_too_many_deployments(self, mock_client, _):
         errors = mock.MagicMock()
         kub = kube.Kube('ns', 'api', mock.MagicMock(), errors)
@@ -221,7 +238,7 @@ class KubeTests(unittest.TestCase):
     @mock.patch('twyla.kubedeploy.kube.open',
                 new=mock.mock_open(read_data='---'))
     @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
-    @mock.patch('twyla.kubedeploy.kube.kubernetes.client.ExtensionsV1beta1Api')
+    @mock.patch('twyla.kubedeploy.kube.kubernetes.client.AppsV1beta1Api')
     def test_deployment_no_deployments(self, mock_client, _):
         errors = mock.MagicMock()
         kub = kube.Kube('ns', 'api', mock.MagicMock(), errors)

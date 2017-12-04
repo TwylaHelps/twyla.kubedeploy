@@ -13,6 +13,13 @@ class MultipleDeploymentDefinitionsException(Exception):
     pass
 
 
+# Be like Response, my friend!
+# Implements res.data to make the Kubernetes deserializer work with dicts.
+class Res:
+    def __init__(self, data):
+        self.data = data
+
+
 class Kube:
     def __init__(self,
                  namespace: str,
@@ -25,7 +32,7 @@ class Kube:
         kubernetes.config.load_kube_config()
         self.namespace = namespace
         self.v1_client = kubernetes.client.CoreV1Api()
-        self.ext_v1_beta_client = kubernetes.client.ExtensionsV1beta1Api()
+        self.ext_v1_beta_client = kubernetes.client.AppsV1beta1Api()
         self.printer = printer
         self.error_printer = error_printer
         self.deployment_name = deployment_name
@@ -33,17 +40,18 @@ class Kube:
 
 
     def parse_deployment_data(self, data):
+        return self.parse_data_into('AppsV1beta1Deployment', data)
+
+
+    def parse_service_data(self, data):
+        return self.parse_data_into('V1Service', data)
+
+
+    def parse_data_into(self, kubernetes_type: str, data: dict):
         api_client = kubernetes.client.ApiClient()
-
-        # Be like Response, my friend!
-        # Implements res.data to make the deserializer work.
-        class Res:
-            def __init__(self, data):
-                self.data = data
-
         res = Res(data=data)
+        return api_client.deserialize(res, kubernetes_type)
 
-        return api_client.deserialize(res, 'ExtensionsV1beta1Deployment')
 
     def load_deployment_from_file(self):
         with open(self.deployment_template) as fd:
@@ -90,7 +98,7 @@ class Kube:
                 'No deployment definition found in deployment.yml')
             return
 
-        api_client = kubernetes.client.ExtensionsV1beta1Api()
+        api_client = kubernetes.client.AppsV1beta1Api()
         try:
             # The call to get the deployment is basically a sentinel to decide
             # if the deployment definition has to be supplied with patch or
@@ -126,7 +134,7 @@ class Kube:
     def print_deployment_info(
             self,
             title: str,
-            deployment: kubernetes.client.ExtensionsV1beta1Deployment):
+            deployment: kubernetes.client.AppsV1beta1Deployment):
 
         if deployment.spec is None:
             # NOTE: This code path can not be hit I think?
@@ -147,7 +155,7 @@ class Kube:
 
     def fill_deployment_definition(
             self,
-            deployment: kubernetes.client.ExtensionsV1beta1Deployment,
+            deployment: kubernetes.client.AppsV1beta1Deployment,
             tag: str):
         # Set name
         deployment.metadata.name = self.deployment_name
