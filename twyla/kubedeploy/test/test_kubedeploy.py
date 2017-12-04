@@ -70,12 +70,20 @@ MULTIMULTIDOC = """
 
 
 class KubeTests(unittest.TestCase):
+    @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
+    def test_type_name_from_data(self, _):
+        data = yaml.load(DEPLOYMENT)
+        kub = kube.Kube('ns', 'api', None, None)
+        type_name = kub.type_name_from_data(data)
+        # Assert some basics that hint on success
+        assert type_name == 'AppsV1beta1Deployment'
+
 
     @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
     def test_parse_deployment_data(self, _):
-        data = json.dumps(yaml.load(DEPLOYMENT))
+        data = yaml.load(DEPLOYMENT)
         kub = kube.Kube('ns', 'api', None, None)
-        res = kub.parse_deployment_data(data)
+        res = kub.parse_data(data)
         # Assert some basics that hint on success
         assert isinstance(res, kubernetes.client.AppsV1beta1Deployment)
         assert res.kind == 'Deployment'
@@ -85,9 +93,9 @@ class KubeTests(unittest.TestCase):
 
     @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
     def test_parse_service_data(self, _):
-        data = json.dumps(yaml.load(SERVICE))
+        data = yaml.load(SERVICE)
         kub = kube.Kube('ns', 'api', None, None)
-        res = kub.parse_service_data(data)
+        res = kub.parse_data(data)
         # Assert some basics that hint on success
         assert isinstance(res, kubernetes.client.V1Service)
         assert res.kind == 'Service'

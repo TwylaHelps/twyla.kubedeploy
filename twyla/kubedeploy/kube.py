@@ -39,17 +39,23 @@ class Kube:
         self.deployment_template = deployment_template or 'deployment.yml'
 
 
-    def parse_deployment_data(self, data):
-        return self.parse_data_into('AppsV1beta1Deployment', data)
+    def type_name_from_data(self, data):
+        # apps/v1beta1
+        api_version = data.get('apiVersion')
+        # Deployment
+        kind = data.get('kind')
+        # ['Apps', 'V1beta1']
+        parts = [part.capitalize() for part in api_version.split('/')]
+        # ['Apps', 'V1beta1', 'Deployment']
+        parts.append(kind)
+        # 'AppsV1beta1Deployment'
+        return ''.join(parts)
 
 
-    def parse_service_data(self, data):
-        return self.parse_data_into('V1Service', data)
-
-
-    def parse_data_into(self, kubernetes_type: str, data: dict):
+    def parse_data(self, data: dict):
+        kubernetes_type = self.type_name_from_data(data)
         api_client = kubernetes.client.ApiClient()
-        res = Res(data=data)
+        res = Res(data=json.dumps(data))
         return api_client.deserialize(res, kubernetes_type)
 
 
@@ -66,7 +72,7 @@ class Kube:
         elif len(deployment_data) < 1:
             raise DeploymentNotFoundException
 
-        return self.parse_deployment_data(json.dumps(deployment_data[0]))
+        return self.parse_data(deployment_data[0])
 
 
     def get_deployment(self):
