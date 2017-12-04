@@ -104,22 +104,6 @@ class Kube:
 
         self.objects.extend(objects)
 
-    def load_deployment_from_file(self):
-        with open(self.deployment_template) as fd:
-            documents = yaml.load_all(fd)
-
-        deployment_data = [doc for doc
-                           in documents
-                           if doc is not None
-                           and doc.get('kind') == 'Deployment']
-        if len(deployment_data) > 1:
-            raise MultipleDeploymentDefinitionsException
-        elif len(deployment_data) < 1:
-            raise DeploymentNotFoundException
-
-        return self.parse_data(deployment_data[0])
-
-
     def get_deployment(self):
         try:
             res = self.ext_v1_beta_client.read_namespaced_deployment(
@@ -136,10 +120,12 @@ class Kube:
 
 
     def deploy(self, tag: str):
+        # Load the deployment definition
+        self.load_objects_from_file()
         # Get current deployment and update the relevant information
         try:
             deployment = self.fill_deployment_definition(
-                self.load_deployment_from_file(), tag)
+                self.objects.get_deployment(), tag)
         except MultipleDeploymentDefinitionsException as multi:
             self.error_printer(
                 'Only one deployment is currently allowed in deployment.yml')

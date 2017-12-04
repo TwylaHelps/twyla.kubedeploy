@@ -180,48 +180,6 @@ class KubeTests(unittest.TestCase):
             kub.objects.get_service()
 
 
-    @mock.patch('twyla.kubedeploy.kube.open',
-                new=mock.mock_open(read_data=DEPLOYMENT))
-    @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
-    def test_load_deployment_form_file(self, _):
-        kub = kube.Kube('ns', 'api', None, None)
-        res = kub.load_deployment_from_file()
-        # Assert some basics that hint on success
-        assert isinstance(res, kubernetes.client.AppsV1beta1Deployment)
-        assert res.kind == 'Deployment'
-        assert len(res.spec.template.spec.containers) == 1
-        assert res.spec.template.spec.containers[0].name == 'nginx'
-
-
-    @mock.patch('twyla.kubedeploy.kube.open',
-                new=mock.mock_open(read_data=MULTIDOC))
-    @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
-    def test_load_multidoc_form_file(self, _):
-        kub = kube.Kube('ns', 'api', None, None)
-        res = kub.load_deployment_from_file()
-        # Assert some basics that hint on success
-        assert isinstance(res, kubernetes.client.AppsV1beta1Deployment)
-        assert res.kind == 'Deployment'
-        assert len(res.spec.template.spec.containers) == 1
-        assert res.spec.template.spec.containers[0].name == 'nginx'
-
-
-    @mock.patch('twyla.kubedeploy.kube.open',
-                new=mock.mock_open(read_data=MULTIMULTIDOC))
-    @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
-    def test_load_too_many_deployments_form_file(self, _):
-        kub = kube.Kube('ns', 'api', None, None)
-        with pytest.raises(kube.MultipleDeploymentDefinitionsException):
-            kub.load_deployment_from_file()
-
-    @mock.patch('twyla.kubedeploy.kube.open',
-                new=mock.mock_open(read_data='---'))
-    @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
-    def test_load_no_deployments_form_file(self, _):
-        kub = kube.Kube('ns', 'api', None, None)
-        with pytest.raises(kube.DeploymentNotFoundException):
-            kub.load_deployment_from_file()
-
     @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
     @mock.patch('twyla.kubedeploy.kube.kubernetes.client')
     def test_get_deployment_when_exists(self, mock_client, _):
@@ -262,10 +220,10 @@ class KubeTests(unittest.TestCase):
         v1_beta.read_namespaced_deployment.side_effect = ApiException(status=404)
 
         kub = kube.Kube('ns', 'api', mock.MagicMock(), mock.MagicMock())
-        expected = kub.fill_deployment_definition(
-            kub.load_deployment_from_file(), 'myreg/test-service:version')
-
         kub.deploy('myreg/test-service:version')
+        expected = kub.fill_deployment_definition(
+            kub.objects.get_deployment(), 'myreg/test-service:version')
+
         v1_beta.create_namespaced_deployment.assert_called_once_with(
             namespace='ns', body=expected)
 
@@ -279,10 +237,10 @@ class KubeTests(unittest.TestCase):
         v1_beta.read_namespaced_deployment.return_value = 'some_deployment'
 
         kub = kube.Kube('ns', 'api', mock.MagicMock(), mock.MagicMock())
-        expected = kub.fill_deployment_definition(
-            kub.load_deployment_from_file(), 'myreg/test-service:version')
-
         kub.deploy('myreg/test-service:version')
+        expected = kub.fill_deployment_definition(
+            kub.objects.get_deployment(), 'myreg/test-service:version')
+
         v1_beta.patch_namespaced_deployment.assert_called_once_with(
             name='api', namespace='ns', body=expected)
 
@@ -343,7 +301,8 @@ class KubeTests(unittest.TestCase):
     @mock.patch('twyla.kubedeploy.kube.Kube.print_deployment_info')
     def test_info(self, mock_print_info, mock_get_deployment, _):
         kub = kube.Kube('ns', 'api', mock.MagicMock(), mock.MagicMock())
-        deployment = kub.load_deployment_from_file()
+        kub.load_objects_from_file()
+        deployment = kub.objects.get_deployment()
         mock_get_deployment.return_value = deployment
         kub.info()
 
@@ -374,7 +333,8 @@ class KubeTests(unittest.TestCase):
         errors = mock.MagicMock()
         printer = mock.MagicMock()
         kub = kube.Kube('ns', 'api', printer, errors)
-        deployment = kub.load_deployment_from_file()
+        kub.load_objects_from_file()
+        deployment = kub.objects.get_deployment()
 
         kub.print_deployment_info(title='a title', deployment=deployment)
 
@@ -393,7 +353,8 @@ class KubeTests(unittest.TestCase):
         errors = mock.MagicMock()
         printer = mock.MagicMock()
         kub = kube.Kube('ns', 'api', printer, errors)
-        deployment = kub.load_deployment_from_file()
+        kub.load_objects_from_file()
+        deployment = kub.objects.get_deployment()
         deployment.status.replicas = 4
         deployment.status.ready_replicas = 3
 
@@ -414,7 +375,8 @@ class KubeTests(unittest.TestCase):
         errors = mock.MagicMock()
         printer = mock.MagicMock()
         kub = kube.Kube('ns', 'api', printer, errors)
-        deployment = kub.load_deployment_from_file()
+        kub.load_objects_from_file()
+        deployment = kub.objects.get_deployment()
         deployment.spec = None
 
         kub.print_deployment_info(title='a title', deployment=deployment)
