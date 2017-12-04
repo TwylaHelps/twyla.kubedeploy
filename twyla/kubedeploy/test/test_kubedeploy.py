@@ -1,4 +1,3 @@
-import json
 import unittest
 from unittest import mock
 
@@ -182,9 +181,9 @@ class KubeTests(unittest.TestCase):
 
     @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
     @mock.patch('twyla.kubedeploy.kube.kubernetes.client')
-    def test_get_deployment_when_exists(self, mock_client, _):
+    def test_get_remote_deployment_when_exists(self, mock_client, _):
         kub = kube.Kube('ns', 'api', None, None)
-        kub.get_deployment()
+        kub.get_remote_deployment()
         v1_beta = mock_client.AppsV1beta1Api.return_value
         assert v1_beta.read_namespaced_deployment.call_count == 1
         v1_beta.read_namespaced_deployment.assert_called_once_with(
@@ -193,22 +192,22 @@ class KubeTests(unittest.TestCase):
 
     @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
     @mock.patch('twyla.kubedeploy.kube.kubernetes.client.AppsV1beta1Api')
-    def test_get_deployment_missing(self, mock_client, _):
+    def test_get_remote_deployment_missing(self, mock_client, _):
         v1_beta = mock_client.return_value
         v1_beta.read_namespaced_deployment.side_effect = ApiException(status=404)
         kub = kube.Kube('ns', 'api', None, None)
         with pytest.raises(kube.DeploymentNotFoundException):
-            kub.get_deployment()
+            kub.get_remote_deployment()
 
 
     @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
     @mock.patch('twyla.kubedeploy.kube.kubernetes.client.AppsV1beta1Api')
-    def test_get_deployment_rethrow(self, mock_client, _):
+    def test_get_remote_deployment_rethrow(self, mock_client, _):
         v1_beta = mock_client.return_value
         v1_beta.read_namespaced_deployment.side_effect = ApiException(status=503)
         kub = kube.Kube('ns', 'api', None, None)
         with pytest.raises(ApiException):
-            kub.get_deployment()
+            kub.get_remote_deployment()
 
 
     @mock.patch('twyla.kubedeploy.kube.open',
@@ -297,7 +296,7 @@ class KubeTests(unittest.TestCase):
     @mock.patch('twyla.kubedeploy.kube.open',
                 new=mock.mock_open(read_data=DEPLOYMENT))
     @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
-    @mock.patch('twyla.kubedeploy.kube.Kube.get_deployment')
+    @mock.patch('twyla.kubedeploy.kube.Kube.get_remote_deployment')
     @mock.patch('twyla.kubedeploy.kube.Kube.print_deployment_info')
     def test_info(self, mock_print_info, mock_get_deployment, _):
         kub = kube.Kube('ns', 'api', mock.MagicMock(), mock.MagicMock())
@@ -310,7 +309,7 @@ class KubeTests(unittest.TestCase):
 
 
     @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
-    @mock.patch('twyla.kubedeploy.kube.Kube.get_deployment')
+    @mock.patch('twyla.kubedeploy.kube.Kube.get_remote_deployment')
     @mock.patch('twyla.kubedeploy.kube.Kube.print_deployment_info')
     def test_info_not_found(self, mock_print_info, mock_get_deployment, _):
         errors = mock.MagicMock()
@@ -327,7 +326,7 @@ class KubeTests(unittest.TestCase):
 
     @mock.patch('twyla.kubedeploy.kube.open',
                 new=mock.mock_open(read_data=DEPLOYMENT))
-    @mock.patch('twyla.kubedeploy.kube.Kube.get_deployment')
+    @mock.patch('twyla.kubedeploy.kube.Kube.get_remote_deployment')
     @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
     def test_print_deployment_info(self, _, __):
         errors = mock.MagicMock()
@@ -347,7 +346,7 @@ class KubeTests(unittest.TestCase):
 
     @mock.patch('twyla.kubedeploy.kube.open',
                 new=mock.mock_open(read_data=DEPLOYMENT_WITH_REPLICAS))
-    @mock.patch('twyla.kubedeploy.kube.Kube.get_deployment')
+    @mock.patch('twyla.kubedeploy.kube.Kube.get_remote_deployment')
     @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
     def test_print_deployment_info_with_replicas(self, _, __):
         errors = mock.MagicMock()
@@ -369,7 +368,7 @@ class KubeTests(unittest.TestCase):
 
     @mock.patch('twyla.kubedeploy.kube.open',
                 new=mock.mock_open(read_data=DEPLOYMENT))
-    @mock.patch('twyla.kubedeploy.kube.Kube.get_deployment')
+    @mock.patch('twyla.kubedeploy.kube.Kube.get_remote_deployment')
     @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
     def test_print_deployment_info_none(self, _, __):
         errors = mock.MagicMock()

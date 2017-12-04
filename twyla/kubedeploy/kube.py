@@ -104,7 +104,7 @@ class Kube:
 
         self.objects.extend(objects)
 
-    def get_deployment(self):
+    def get_remote_deployment(self):
         try:
             res = self.ext_v1_beta_client.read_namespaced_deployment(
                 name=self.deployment_name,
@@ -140,7 +140,7 @@ class Kube:
             # The call to get the deployment is basically a sentinel to decide
             # if the deployment definition has to be supplied with patch or
             # create.
-            self.get_deployment()
+            self.get_remote_deployment()
             api_client.patch_namespaced_deployment(
                 name=deployment.metadata.name,
                 body=deployment,
@@ -160,7 +160,7 @@ class Kube:
     def info(self):
         kubernetes.config.load_kube_config()
         try:
-            deployment = self.get_deployment()
+            deployment = self.get_remote_deployment()
             self.print_deployment_info(
                 'Current {}'.format(self.deployment_name),
                 deployment)
