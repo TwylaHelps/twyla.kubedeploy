@@ -13,12 +13,46 @@ class MultipleDeploymentDefinitionsException(Exception):
     pass
 
 
+class ServiceNotFoundException(Exception):
+    pass
+
+
+class MultipleServicesDefinitionsException(Exception):
+    pass
+
+
 # Be like Response, my friend!
 # Implements res.data to make the Kubernetes deserializer work with dicts.
 class Res:
     def __init__(self, data):
         self.data = data
 
+
+class KubeObjects(list):
+    def get_deployment(self):
+        deployment_data = [obj for obj
+                           in self
+                           if obj is not None
+                           and obj.kind == 'Deployment']
+        if len(deployment_data) > 1:
+            raise MultipleDeploymentDefinitionsException
+        elif len(deployment_data) < 1:
+            raise DeploymentNotFoundException
+
+        return deployment_data[0]
+
+    # TODO: make dry
+    def get_service(self):
+        deployment_data = [obj for obj
+                           in self
+                           if obj is not None
+                           and obj.kind == 'Service']
+        if len(deployment_data) > 1:
+            raise MultipleServicesDefinitionsException
+        elif len(deployment_data) < 1:
+            raise ServiceNotFoundException
+
+        return deployment_data[0]
 
 class Kube:
     def __init__(self,
@@ -37,6 +71,7 @@ class Kube:
         self.error_printer = error_printer
         self.deployment_name = deployment_name
         self.deployment_template = deployment_template or 'deployment.yml'
+        self.objects = KubeObjects()
 
 
     def type_name_from_data(self, data):
@@ -58,6 +93,16 @@ class Kube:
         res = Res(data=json.dumps(data))
         return api_client.deserialize(res, kubernetes_type)
 
+
+    def load_objects_from_file(self):
+        with open(self.deployment_template) as fd:
+            documents = yaml.load_all(fd)
+
+        objects = [self.parse_data(doc) for doc
+                   in documents
+                   if doc is not None]
+
+        self.objects.extend(objects)
 
     def load_deployment_from_file(self):
         with open(self.deployment_template) as fd:

@@ -68,6 +68,17 @@ MULTIMULTIDOC = """
 {deployment}
 """.format(deployment=DEPLOYMENT)
 
+TOOMANY = """
+---
+{deployment}
+---
+{deployment}
+---
+{service}
+---
+{service}
+""".format(service=SERVICE, deployment=DEPLOYMENT)
+
 
 class KubeTests(unittest.TestCase):
     @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
@@ -92,6 +103,18 @@ class KubeTests(unittest.TestCase):
 
 
     @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
+    def test_parse_deployment_data(self, _):
+        data = yaml.load(DEPLOYMENT)
+        kub = kube.Kube('ns', 'api', None, None)
+        res = kub.parse_data(data)
+        # Assert some basics that hint on success
+        assert isinstance(res, kubernetes.client.AppsV1beta1Deployment)
+        assert res.kind == 'Deployment'
+        assert len(res.spec.template.spec.containers) == 1
+        assert res.spec.template.spec.containers[0].name == 'nginx'
+
+
+    @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
     def test_parse_service_data(self, _):
         data = yaml.load(SERVICE)
         kub = kube.Kube('ns', 'api', None, None)
@@ -101,6 +124,60 @@ class KubeTests(unittest.TestCase):
         assert res.kind == 'Service'
         assert len(res.spec.ports) == 1
         assert res.spec.ports[0].target_port == '9376'
+
+
+    @mock.patch('twyla.kubedeploy.kube.open',
+                new=mock.mock_open(read_data=MULTIDOC))
+    @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
+    def test_load_objects_from_file(self, _):
+        kub = kube.Kube('ns', 'api', None, None)
+        kub.load_objects_from_file()
+        # Assert some basics that hint on success
+        assert len(kub.objects) == 2
+
+        res = kub.objects.get_deployment()
+        assert isinstance(res, kubernetes.client.AppsV1beta1Deployment)
+        assert res.kind == 'Deployment'
+        assert len(res.spec.template.spec.containers) == 1
+        assert res.spec.template.spec.containers[0].name == 'nginx'
+
+        res = kub.objects.get_service()
+        assert isinstance(res, kubernetes.client.V1Service)
+        assert res.kind == 'Service'
+        assert len(res.spec.ports) == 1
+        assert res.spec.ports[0].target_port == '9376'
+
+
+    @mock.patch('twyla.kubedeploy.kube.open',
+                new=mock.mock_open(read_data=''))
+    @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
+    def test_load_objects_from_not_found(self, _):
+        kub = kube.Kube('ns', 'api', None, None)
+        kub.load_objects_from_file()
+        # Assert some basics that hint on success
+        assert len(kub.objects) == 0
+
+        with pytest.raises(kube.DeploymentNotFoundException):
+            kub.objects.get_deployment()
+
+        with pytest.raises(kube.ServiceNotFoundException):
+            kub.objects.get_service()
+
+
+    @mock.patch('twyla.kubedeploy.kube.open',
+                new=mock.mock_open(read_data=TOOMANY))
+    @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
+    def test_load_objects_from_multi(self, _):
+        kub = kube.Kube('ns', 'api', None, None)
+        kub.load_objects_from_file()
+        # Assert some basics that hint on success
+        assert len(kub.objects) == 4
+
+        with pytest.raises(kube.MultipleDeploymentDefinitionsException):
+            kub.objects.get_deployment()
+
+        with pytest.raises(kube.MultipleServicesDefinitionsException):
+            kub.objects.get_service()
 
 
     @mock.patch('twyla.kubedeploy.kube.open',
