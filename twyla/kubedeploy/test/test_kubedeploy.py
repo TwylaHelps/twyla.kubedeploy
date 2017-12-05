@@ -499,3 +499,17 @@ class KubeTests(unittest.TestCase):
         assert got == 'No service definition found in deployment.yml. Skipping'
 
         mock_client.assert_called_once_with()
+
+
+    @mock.patch('twyla.kubedeploy.kube.open',
+                new=mock.mock_open(read_data=''))
+    @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
+    @mock.patch('twyla.kubedeploy.kube.Kube.load_objects_from_file')
+    @mock.patch('twyla.kubedeploy.kube.Kube.apply_deployment')
+    @mock.patch('twyla.kubedeploy.kube.Kube.apply_service')
+    def test_apply(self, mock_apply_svc, mock_apply_dep, mock_load, _):
+        kub = kube.Kube('ns', 'api', mock.MagicMock(), mock.MagicMock())
+        kub.apply('some/tag:version')
+        mock_load.assert_called_once_with()
+        mock_apply_svc.assert_called_once_with()
+        mock_apply_dep.assert_called_once_with('some/tag:version')

@@ -139,7 +139,7 @@ class Kube:
     def apply(self, tag: str):
         # Load the deployment definition
         self.load_objects_from_file()
-        self.apply_deployment()
+        self.apply_deployment(tag)
         self.apply_service()
 
 
