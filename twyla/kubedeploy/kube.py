@@ -54,6 +54,7 @@ class KubeObjects(list):
 
         return deployment_data[0]
 
+
 class Kube:
     def __init__(self,
                  namespace: str,
@@ -104,6 +105,7 @@ class Kube:
 
         self.objects.extend(objects)
 
+
     def get_remote_deployment(self):
         try:
             res = self.ext_v1_beta_client.read_namespaced_deployment(
@@ -119,9 +121,29 @@ class Kube:
                 raise e
 
 
-    def deploy(self, tag: str):
+    def get_remote_service(self):
+        try:
+            res = self.ext_v1_beta_client.read_namespaced_service(
+                name=self.deployment_name,
+                namespace=self.namespace)
+            return res
+        except kubernetes.client.rest.ApiException as e:
+            # Create a new service if no existing is found
+            if e.status == 404:
+                msg = "No service found for {}".format(self.deployment_name)
+                raise ServiceNotFoundException(msg) from None
+            else:
+                raise e
+
+
+    def apply(self, tag: str):
         # Load the deployment definition
         self.load_objects_from_file()
+        self.apply_deployment()
+        self.apply_service()
+
+
+    def apply_deployment(self, tag: str):
         # Get current deployment and update the relevant information
         try:
             deployment = self.fill_deployment_definition(
@@ -153,6 +175,39 @@ class Kube:
                 namespace=self.namespace)
             self.printer("New deployment successfully created")
             self.printer("It may need some time to propagate.")
+        except kubernetes.client.rest.ApiException as e:
+            self.error_printer(e)
+
+
+    def apply_service(self):
+        # Get current deployment and update the relevant information
+        try:
+            service = self.fill_service_definition(self.objects.get_service())
+        except MultipleServicesDefinitionsException as multi:
+            self.error_printer(
+                'Only one service is currently allowed in deployment.yml')
+            return
+        except ServiceNotFoundException as not_found:
+            self.printer(
+                'No service definition found in deployment.yml. Skipping')
+            return
+
+        api_client = kubernetes.client.AppsV1beta1Api()
+        try:
+            # The call to get the service is basically a sentinel to decide
+            # if the deployment definition has to be supplied with patch or
+            # create.
+            self.get_remote_service()
+            api_client.patch_namespaced_service(
+                name=service.metadata.name,
+                body=service,
+                namespace=self.namespace)
+            self.printer("Service successfully updated.")
+        except ServiceNotFoundException as not_found:
+            api_client.create_namespaced_service(
+                body=service,
+                namespace=self.namespace)
+            self.printer("New service successfully created")
         except kubernetes.client.rest.ApiException as e:
             self.error_printer(e)
 
@@ -204,3 +259,13 @@ class Kube:
         deployment.spec.template.spec.containers[0].image = tag
 
         return deployment
+
+
+    def fill_service_definition(
+            self,
+            service: kubernetes.client.V1Service):
+        # Set name
+        service.metadata.name = self.deployment_name
+        service.spec.selector['app'] = self.deployment_name
+
+        return service

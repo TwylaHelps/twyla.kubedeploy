@@ -47,7 +47,7 @@ class DeployCommandTests(unittest.TestCase):
             printer=kubedeploy.prompt,
             error_printer=kubedeploy.error_prompt)
         kube = mock_Kube.return_value
-        kube.deploy.assert_called_once_with(
+        kube.apply.assert_called_once_with(
             'myown.private.registry/test-service:githash'
         )
 
@@ -55,10 +55,10 @@ class DeployCommandTests(unittest.TestCase):
     @mock.patch('twyla.kubedeploy.docker_helpers.docker_image_exists')
     @mock.patch('twyla.kubedeploy.Kube')
     @mock.patch('twyla.kubedeploy.head_of')
-    def test_abort_on_no(self,
-                         mock_head_of,
-                         mock_Kube,
-                         mock_docker_exists):
+    def test_abort_on_dry_run(self,
+                              mock_head_of,
+                              mock_Kube,
+                              mock_docker_exists):
         """
         On dry runs no deployment should be done.
         """
@@ -78,8 +78,7 @@ class DeployCommandTests(unittest.TestCase):
             print(''.join(traceback.format_exception(*result.exc_info)))
             self.fail()
         kube = mock_Kube.return_value
-        assert kube.deploy.call_count == 0
-
+        assert kube.apply.call_count == 0
 
 
     @mock.patch('twyla.kubedeploy.error_prompt')
@@ -107,7 +106,7 @@ class DeployCommandTests(unittest.TestCase):
         # because SystemExit is validly raised for sys.exit(1) on
         # missing image
         kube = mock_Kube.return_value
-        assert kube.deploy.call_count == 0
+        assert kube.apply.call_count == 0
         assert mock_error_prompt.call_count == 1
         mock_error_prompt.assert_called_once_with(
             "Image not found: myown.private.registry/test-service:githash")

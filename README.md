@@ -102,6 +102,8 @@ result will be sent to the Kubernetes API. The result is the same as calling
 ## Known Bugs
 
 - limited keyring support (should work on MacOS though)
+- services are assumed to have the same name as the deployment (could be a
+  feature though)
 
 
 ## Todo

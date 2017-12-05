@@ -156,7 +156,7 @@ def deploy(registry: str, image: str, name: str, namespace: str, branch: str,
         prompt('Dry run finished. Not deploying.')
         return
 
-    kube.deploy(tag)
+    kube.apply(tag)
 
 
 @cli.command()
