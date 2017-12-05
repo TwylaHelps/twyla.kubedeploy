@@ -97,8 +97,9 @@ class Kube:
 
     def load_objects_from_file(self):
         with open(self.deployment_template) as fd:
-            documents = yaml.load_all(fd)
+            document_string = fd.read()
 
+        documents = yaml.load_all(document_string)
         objects = [self.parse_data(doc) for doc
                    in documents
                    if doc is not None]
