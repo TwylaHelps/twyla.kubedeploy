@@ -224,10 +224,12 @@ class KubeTests(unittest.TestCase):
     @mock.patch('twyla.kubedeploy.kube.open',
                 new=mock.mock_open(read_data=DEPLOYMENT))
     @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
+    @mock.patch('twyla.kubedeploy.kube.Kube.get_remote_deployment')
     @mock.patch('twyla.kubedeploy.kube.kubernetes.client.AppsV1beta1Api')
-    def test_deployment_exists(self, mock_client, _):
+    def test_deployment_exists(self, mock_client, mock_deployment, _):
         v1_beta = mock_client.return_value
-        v1_beta.read_namespaced_deployment.return_value = 'some_deployment'
+        replicas = 5
+        mock_deployment.return_value.spec.replicas = replicas
 
         kub = kube.Kube('ns', 'api', mock.MagicMock(), mock.MagicMock())
         kub.load_objects_from_file()
@@ -237,6 +239,8 @@ class KubeTests(unittest.TestCase):
 
         v1_beta.patch_namespaced_deployment.assert_called_once_with(
             name='api', namespace='ns', body=expected)
+        got = v1_beta.patch_namespaced_deployment.call_args[1]['body']
+        assert got.spec.replicas == replicas
 
 
     @mock.patch('twyla.kubedeploy.kube.open',

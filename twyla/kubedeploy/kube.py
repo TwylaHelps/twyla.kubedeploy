@@ -160,10 +160,11 @@ class Kube:
 
         api_client = kubernetes.client.AppsV1beta1Api()
         try:
-            # The call to get the deployment is basically a sentinel to decide
-            # if the deployment definition has to be supplied with patch or
-            # create.
-            self.get_remote_deployment()
+            # The call to get the deployment is used to get the current number
+            # of replicas and as a sentinel to decide if the deployment
+            # definition has to be supplied with patch or create.
+            remote = self.get_remote_deployment()
+            deployment.spec.replicas = remote.spec.replicas
             api_client.patch_namespaced_deployment(
                 name=deployment.metadata.name,
                 body=deployment,
