@@ -52,6 +52,49 @@ class DeployCommandTests(unittest.TestCase):
         )
 
 
+    @mock.patch('twyla.kubedeploy.docker_helpers.docker_image')
+    @mock.patch('twyla.kubedeploy.docker_helpers.docker_image_exists')
+    @mock.patch('twyla.kubedeploy.Kube')
+    @mock.patch('twyla.kubedeploy.head_of')
+    def test_deploy_local_head(self, mock_head_of, mock_Kube,
+                               mock_docker_exists, mock_docker_image):
+        """When passed no arguments, the deploy command deploys head of
+        master"""
+        mock_head_of.return_value = 'githash'
+        mock_docker_exists.return_value = True
+        runner = CliRunner()
+        result = runner.invoke(kubedeploy.deploy, ['--registry',
+                                                   'myown.private.registry',
+                                                   '--image',
+                                                   'test-service',
+                                                   '--name',
+                                                   'test-deployment',
+                                                   '--namespace',
+                                                   'anamespace',
+                                                   '--local'])
+        if result.exception:
+            print(''.join(traceback.format_exception(*result.exc_info)))
+            self.fail()
+
+        # Branch should be None and local True if using the local state
+        mock_head_of.assert_called_once_with(os.getcwd(),
+                                             None,
+                                             local=True)
+        assert mock_docker_image.call_count == 2
+        mock_docker_image.assert_has_calls([
+            mock.call('build', 'myown.private.registry/test-service:githash'),
+            mock.call('push', 'myown.private.registry/test-service:githash')])
+        mock_Kube.assert_called_once_with(
+            namespace='anamespace',
+            deployment_name='test-service',
+            printer=kubedeploy.prompt,
+            error_printer=kubedeploy.error_prompt)
+        kube = mock_Kube.return_value
+        kube.apply.assert_called_once_with(
+            'myown.private.registry/test-service:githash'
+        )
+
+
     @mock.patch('twyla.kubedeploy.docker_helpers.docker_image_exists')
     @mock.patch('twyla.kubedeploy.Kube')
     @mock.patch('twyla.kubedeploy.head_of')
