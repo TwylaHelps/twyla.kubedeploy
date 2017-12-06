@@ -261,3 +261,73 @@ class DeployCommandTests(unittest.TestCase):
         mock_shutil.move.assert_called_once_with(
             mock_tempfile.mkdtemp.return_value,
             'some/joined/path')
+
+
+    @mock.patch('twyla.kubedeploy.docker_helpers.docker_image')
+    @mock.patch('twyla.kubedeploy.head_of')
+    @mock.patch('twyla.kubedeploy.download_requirements')
+    def test_build(self, mock_downloader, mock_head_of, mock_docker_image):
+        """When passed no arguments, the deploy command deploys head of
+        master"""
+        mock_head_of.return_value = 'githash'
+        runner = CliRunner()
+        result = runner.invoke(kubedeploy.build, ['--registry',
+                                                  'myown.private.registry',
+                                                  '--image',
+                                                  'test-service'])
+        if result.exception:
+            print(''.join(traceback.format_exception(*result.exc_info)))
+            self.fail()
+
+        # If no version is given explicitly assume local when trying to get the
+        # version. This makes sense because builds are using the local state
+        # anyway.
+        mock_head_of.assert_called_once_with(None, local=True)
+        mock_downloader.assert_called_once_with()
+        mock_docker_image.assert_called_once_with(
+            'build', 'myown.private.registry/test-service:githash')
+
+
+    @mock.patch('twyla.kubedeploy.docker_helpers.docker_image')
+    @mock.patch('twyla.kubedeploy.head_of')
+    def test_push(self, mock_head_of, mock_docker_image):
+        """When passed no arguments, the deploy command deploys head of
+        master"""
+        mock_head_of.return_value = 'githash'
+        runner = CliRunner()
+        result = runner.invoke(kubedeploy.push, ['--registry',
+                                                 'myown.private.registry',
+                                                 '--image',
+                                                 'test-service'])
+        if result.exception:
+            print(''.join(traceback.format_exception(*result.exc_info)))
+            self.fail()
+
+        # If no version is given explicitly assume local when trying to get the
+        # version. This makes sense because builds are using the local state
+        # anyway.
+        mock_head_of.assert_called_once_with(None, local=True)
+        mock_docker_image.assert_called_once_with(
+            'push', 'myown.private.registry/test-service:githash')
+
+
+    @mock.patch('twyla.kubedeploy.Kube')
+    def test_info(self, mock_Kube):
+        """When passed no arguments, the deploy command deploys head of
+        master"""
+        runner = CliRunner()
+        result = runner.invoke(kubedeploy.info, ['--name',
+                                                 'test-service',
+                                                 '--namespace',
+                                                 'anamespace'])
+        if result.exception:
+            print(''.join(traceback.format_exception(*result.exc_info)))
+            self.fail()
+
+        mock_Kube.assert_called_once_with(
+            namespace='anamespace',
+            deployment_name='test-service',
+            printer=kubedeploy.prompt,
+            error_printer=kubedeploy.error_prompt)
+        kube = mock_Kube.return_value
+        kube.info.assert_called_once_with()
