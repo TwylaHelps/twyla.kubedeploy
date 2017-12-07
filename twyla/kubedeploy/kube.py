@@ -119,7 +119,7 @@ class Kube:
                 msg = "No deployment found for {}".format(self.deployment_name)
                 raise DeploymentNotFoundException(msg) from None
             else:
-                raise e
+                raise
 
 
     def get_remote_service(self):
@@ -134,7 +134,7 @@ class Kube:
                 msg = "No service found for {}".format(self.deployment_name)
                 raise ServiceNotFoundException(msg) from None
             else:
-                raise e
+                raise
 
 
     def apply(self, tag: str):

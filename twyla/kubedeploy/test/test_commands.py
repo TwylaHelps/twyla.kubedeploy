@@ -58,8 +58,8 @@ class DeployCommandTests(unittest.TestCase):
     @mock.patch('twyla.kubedeploy.head_of')
     def test_deploy_local_head(self, mock_head_of, mock_Kube,
                                mock_docker_exists, mock_docker_image):
-        """When passed no arguments, the deploy command deploys head of
-        master"""
+        """When passed the local flag, the deploy command deploys head of the
+        local git state"""
         mock_head_of.return_value = 'githash'
         mock_docker_exists.return_value = True
         runner = CliRunner()
@@ -267,8 +267,6 @@ class DeployCommandTests(unittest.TestCase):
     @mock.patch('twyla.kubedeploy.head_of')
     @mock.patch('twyla.kubedeploy.download_requirements')
     def test_build(self, mock_downloader, mock_head_of, mock_docker_image):
-        """When passed no arguments, the deploy command deploys head of
-        master"""
         mock_head_of.return_value = 'githash'
         runner = CliRunner()
         result = runner.invoke(kubedeploy.build, ['--registry',
@@ -291,8 +289,6 @@ class DeployCommandTests(unittest.TestCase):
     @mock.patch('twyla.kubedeploy.docker_helpers.docker_image')
     @mock.patch('twyla.kubedeploy.head_of')
     def test_push(self, mock_head_of, mock_docker_image):
-        """When passed no arguments, the deploy command deploys head of
-        master"""
         mock_head_of.return_value = 'githash'
         runner = CliRunner()
         result = runner.invoke(kubedeploy.push, ['--registry',
@@ -313,8 +309,6 @@ class DeployCommandTests(unittest.TestCase):
 
     @mock.patch('twyla.kubedeploy.Kube')
     def test_info(self, mock_Kube):
-        """When passed no arguments, the deploy command deploys head of
-        master"""
         runner = CliRunner()
         result = runner.invoke(kubedeploy.info, ['--name',
                                                  'test-service',
