@@ -12,20 +12,10 @@ images to a registry, and deploying the image to a Kubernetes cluster based on a
 deployment configuration that exists also either locally or remotely on the
 cluster.
 
-> NOTE: This tool is a work in progress moving the internal Twyla specific
-> tooling to open source. The interface will likely change. Currently the tool
-> will require a `requirements.txt` in the directory it is called from, making
-> it seemingly only support Python services.
-
 
 ## Install
 
-The recommended way to install is currently by checking out and installing with
-pip into a previously created virtual environment.
-
-    git clone https://github.com/TwylaHelps/twyla.kubedeploy
-    cd twyla.kubedeploy
-    pip install -r requirements.txt
+    pip install git+https://github.com/TwylaHelps/twyla.kubedeploy
 
 
 ## Usage
@@ -108,7 +98,7 @@ result will be sent to the Kubernetes API. The result is the same as calling
 
 ## Todo
 
-- [ ] improve test coverage
+- [x] improve test coverage
 - [ ] rethink interface for printing messages
 - [ ] dump deployments for use with `kubectl apply -f`
 - [x] support multi-document `deployment.yml` so other objects can be added (e.g. acompanying services)
@@ -118,4 +108,4 @@ result will be sent to the Kubernetes API. The result is the same as calling
 
 - [ ] support config files additionally to command line knobs
 - [ ] support `rkt`
-- [ ] support non-Python services when building images
+- [x] support non-Python services when building images
