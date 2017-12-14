@@ -8,6 +8,30 @@ from kubernetes.client.rest import ApiException
 from twyla.kubedeploy import kube
 
 
+DEPLOYMENT_EXT = """
+apiVersion: extensions/v1beta1 # for versions since 1.8.0 use apps/v1beta2
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  labels:
+    app: nginx
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.7.9
+        ports:
+        - containerPort: 80
+"""
+
 DEPLOYMENT = """
 apiVersion: apps/v1beta1 # for versions since 1.8.0 use apps/v1beta2
 kind: Deployment
@@ -53,6 +77,20 @@ spec:
     targetPort: 9376
 """
 
+INVALID_API = """
+kind: Service
+apiVersion: does/not/exist
+metadata:
+  name: my-service
+spec:
+  selector:
+    app: MyApp
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 9376
+"""
+
 MULTIDOC = """
 ---
 {deployment}
@@ -78,8 +116,36 @@ class KubeTests(unittest.TestCase):
         data = yaml.load(DEPLOYMENT)
         kub = kube.Kube('ns', 'api', None, None)
         type_name = kub.type_name_from_data(data)
-        # Assert some basics that hint on success
         assert type_name == 'AppsV1beta1Deployment'
+
+
+    @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
+    def test_api_name_from_object(self, _):
+        data = yaml.load(DEPLOYMENT)
+        kub = kube.Kube('ns', 'api', None, None)
+        obj = kub.parse_data(data)
+        api_name = kub.api_name_from_object(obj)
+        assert api_name == 'AppsV1beta1Api'
+
+
+    @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
+    def test_api_from_object(self, _):
+        data = yaml.load(DEPLOYMENT)
+        kub = kube.Kube('ns', 'api', None, None)
+        obj = kub.parse_data(data)
+        api = kub.api_from_object(obj)
+        assert isinstance(
+            api,
+            kubernetes.client.apis.apps_v1beta1_api.AppsV1beta1Api)
+
+
+    @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
+    def test_api_from_object_core(self, _):
+        data = yaml.load(SERVICE)
+        kub = kube.Kube('ns', 'api', None, None)
+        obj = kub.parse_data(data)
+        api = kub.api_from_object(obj)
+        assert isinstance(api, kubernetes.client.apis.core_v1_api.CoreV1Api)
 
 
     @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
@@ -95,12 +161,12 @@ class KubeTests(unittest.TestCase):
 
 
     @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
-    def test_parse_deployment_data(self, _):
-        data = yaml.load(DEPLOYMENT)
+    def test_parse_deployment_data_different_namespace(self, _):
+        data = yaml.load(DEPLOYMENT_EXT)
         kub = kube.Kube('ns', 'api', None, None)
         res = kub.parse_data(data)
         # Assert some basics that hint on success
-        assert isinstance(res, kubernetes.client.AppsV1beta1Deployment)
+        assert isinstance(res, kubernetes.client.ExtensionsV1beta1Deployment)
         assert res.kind == 'Deployment'
         assert len(res.spec.template.spec.containers) == 1
         assert res.spec.template.spec.containers[0].name == 'nginx'

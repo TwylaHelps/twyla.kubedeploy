@@ -5,6 +5,10 @@ import kubernetes
 import yaml
 
 
+class ApiNotFoundException(Exception):
+    pass
+
+
 class DeploymentNotFoundException(Exception):
     pass
 
@@ -66,8 +70,6 @@ class Kube:
         # you already have a working kubectl setup.
         kubernetes.config.load_kube_config()
         self.namespace = namespace
-        self.v1_client = kubernetes.client.CoreV1Api()
-        self.ext_v1_beta_client = kubernetes.client.AppsV1beta1Api()
         self.printer = printer
         self.error_printer = error_printer
         self.deployment_name = deployment_name
@@ -86,6 +88,27 @@ class Kube:
         parts.append(kind)
         # 'AppsV1beta1Deployment'
         return ''.join(parts)
+
+
+    def api_name_from_object(self, obj):
+        # apps/v1beta1
+        api_version = obj.api_version
+        # ['Apps', 'V1beta1']
+        parts = [part.capitalize() for part in api_version.split('/')]
+        # ['Apps', 'V1beta1']
+        parts.append('Api')
+        # 'AppsV1beta1Api'
+        return ''.join(parts)
+
+
+    def api_from_object(self, obj):
+        api_name = self.api_name_from_object(obj)
+        try:
+            api = getattr(kubernetes.client, api_name)()
+        except AttributeError:
+            api = getattr(kubernetes.client, 'Core{}'.format(api_name))()
+
+        return api
 
 
     def parse_data(self, data: dict):
@@ -107,9 +130,9 @@ class Kube:
         self.objects.extend(objects)
 
 
-    def get_remote_deployment(self):
+    def get_remote_deployment(self, api_client):
         try:
-            res = self.ext_v1_beta_client.read_namespaced_deployment(
+            res = api_client.read_namespaced_deployment(
                 name=self.deployment_name,
                 namespace=self.namespace)
             return res
@@ -122,9 +145,9 @@ class Kube:
                 raise
 
 
-    def get_remote_service(self):
+    def get_remote_service(self, api_client):
         try:
-            res = self.ext_v1_beta_client.read_namespaced_service(
+            res = api_client.read_namespaced_service(
                 name=self.deployment_name,
                 namespace=self.namespace)
             return res
@@ -158,12 +181,12 @@ class Kube:
                 'No deployment definition found in deployment.yml')
             return
 
-        api_client = kubernetes.client.AppsV1beta1Api()
+        api_client = self.api_from_object(deployment)
         try:
             # The call to get the deployment is used to get the current number
             # of replicas and as a sentinel to decide if the deployment
             # definition has to be supplied with patch or create.
-            remote = self.get_remote_deployment()
+            remote = self.get_remote_deployment(api_client)
             deployment.spec.replicas = remote.spec.replicas
             api_client.patch_namespaced_deployment(
                 name=deployment.metadata.name,
@@ -194,12 +217,12 @@ class Kube:
                 'No service definition found in deployment.yml. Skipping')
             return
 
-        api_client = kubernetes.client.AppsV1beta1Api()
+        api_client = self.api_from_object(service)
         try:
             # The call to get the service is basically a sentinel to decide
             # if the deployment definition has to be supplied with patch or
             # create.
-            self.get_remote_service()
+            self.get_remote_service(api_client)
             api_client.patch_namespaced_service(
                 name=service.metadata.name,
                 body=service,
@@ -217,7 +240,10 @@ class Kube:
     def info(self):
         kubernetes.config.load_kube_config()
         try:
-            deployment = self.get_remote_deployment()
+            # Assume we are using the apps/v1beta1 deployments when we fetch
+            # information from the cluster.
+            deployment = self.get_remote_deployment(
+                kubernetes.client.AppsV1beta1Api())
             self.print_deployment_info(
                 'Current {}'.format(self.deployment_name),
                 deployment)
@@ -228,7 +254,7 @@ class Kube:
     def print_deployment_info(
             self,
             title: str,
-            deployment: kubernetes.client.AppsV1beta1Deployment):
+            deployment):
 
         if deployment.spec is None:
             # NOTE: This code path can not be hit I think?
@@ -249,7 +275,7 @@ class Kube:
 
     def fill_deployment_definition(
             self,
-            deployment: kubernetes.client.AppsV1beta1Deployment,
+            deployment,
             tag: str):
         # Set name
         deployment.metadata.name = self.deployment_name
