@@ -181,7 +181,7 @@ class KubeTests(unittest.TestCase):
         assert isinstance(res, kubernetes.client.V1Service)
         assert res.kind == 'Service'
         assert len(res.spec.ports) == 1
-        assert res.spec.ports[0].target_port == '9376'
+        assert res.spec.ports[0].target_port == 9376
 
 
     @mock.patch('twyla.kubedeploy.kube.open',
@@ -203,7 +203,7 @@ class KubeTests(unittest.TestCase):
         assert isinstance(res, kubernetes.client.V1Service)
         assert res.kind == 'Service'
         assert len(res.spec.ports) == 1
-        assert res.spec.ports[0].target_port == '9376'
+        assert res.spec.ports[0].target_port == 9376
 
 
     @mock.patch('twyla.kubedeploy.kube.open',
@@ -239,13 +239,12 @@ class KubeTests(unittest.TestCase):
 
 
     @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
-    @mock.patch('twyla.kubedeploy.kube.kubernetes.client')
-    def test_get_remote_deployment_when_exists(self, mock_client, _):
+    def test_get_remote_deployment_when_exists(self, _):
         kub = kube.Kube('ns', 'api', None, None)
-        kub.get_remote_deployment()
-        v1_beta = mock_client.AppsV1beta1Api.return_value
-        assert v1_beta.read_namespaced_deployment.call_count == 1
-        v1_beta.read_namespaced_deployment.assert_called_once_with(
+        mock_client = mock.MagicMock()
+        kub.get_remote_deployment(mock_client)
+        assert mock_client.read_namespaced_deployment.call_count == 1
+        mock_client.read_namespaced_deployment.assert_called_once_with(
             name='api', namespace='ns')
 
 
@@ -256,7 +255,7 @@ class KubeTests(unittest.TestCase):
         v1_beta.read_namespaced_deployment.side_effect = ApiException(status=404)
         kub = kube.Kube('ns', 'api', None, None)
         with pytest.raises(kube.DeploymentNotFoundException):
-            kub.get_remote_deployment()
+            kub.get_remote_deployment(v1_beta)
 
 
     @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
@@ -266,7 +265,7 @@ class KubeTests(unittest.TestCase):
         v1_beta.read_namespaced_deployment.side_effect = ApiException(status=503)
         kub = kube.Kube('ns', 'api', None, None)
         with pytest.raises(ApiException):
-            kub.get_remote_deployment()
+            kub.get_remote_deployment(v1_beta)
 
 
     @mock.patch('twyla.kubedeploy.kube.open',
@@ -330,8 +329,7 @@ class KubeTests(unittest.TestCase):
     @mock.patch('twyla.kubedeploy.kube.open',
                 new=mock.mock_open(read_data=TOOMANY))
     @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
-    @mock.patch('twyla.kubedeploy.kube.kubernetes.client.AppsV1beta1Api')
-    def test_deployment_too_many_deployments(self, mock_client, _):
+    def test_deployment_too_many_deployments(self, _):
         errors = mock.MagicMock()
         kub = kube.Kube('ns', 'api', mock.MagicMock(), errors)
         kub.load_objects_from_file()
@@ -341,14 +339,11 @@ class KubeTests(unittest.TestCase):
         (got) = errors.call_args[0][0]
         assert got == 'Only one deployment is currently allowed in deployment.yml'
 
-        mock_client.assert_called_once_with()
-
 
     @mock.patch('twyla.kubedeploy.kube.open',
                 new=mock.mock_open(read_data='---'))
     @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
-    @mock.patch('twyla.kubedeploy.kube.kubernetes.client.AppsV1beta1Api')
-    def test_deployment_no_deployments(self, mock_client, _):
+    def test_deployment_no_deployments(self, _):
         errors = mock.MagicMock()
         kub = kube.Kube('ns', 'api', mock.MagicMock(), errors)
         kub.apply_deployment('myreg/test-service:version')
@@ -356,8 +351,6 @@ class KubeTests(unittest.TestCase):
         assert errors.call_count == 1
         (got) = errors.call_args[0][0]
         assert got == 'No deployment definition found in deployment.yml'
-
-        mock_client.assert_called_once_with()
 
 
     @mock.patch('twyla.kubedeploy.kube.open',
@@ -453,40 +446,37 @@ class KubeTests(unittest.TestCase):
 
 
     @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
-    @mock.patch('twyla.kubedeploy.kube.kubernetes.client')
-    def test_get_remote_service_when_exists(self, mock_client, _):
+    def test_get_remote_service_when_exists(self, _):
+        client = mock.MagicMock()
         kub = kube.Kube('ns', 'api', None, None)
-        kub.get_remote_service()
-        v1_beta = mock_client.AppsV1beta1Api.return_value
-        assert v1_beta.read_namespaced_service.call_count == 1
-        v1_beta.read_namespaced_service.assert_called_once_with(
+        kub.get_remote_service(client)
+        assert client.read_namespaced_service.call_count == 1
+        client.read_namespaced_service.assert_called_once_with(
             name='api', namespace='ns')
 
 
     @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
-    @mock.patch('twyla.kubedeploy.kube.kubernetes.client.AppsV1beta1Api')
-    def test_get_remote_service_missing(self, mock_client, _):
-        v1_beta = mock_client.return_value
-        v1_beta.read_namespaced_service.side_effect = ApiException(status=404)
+    def test_get_remote_service_missing(self, _):
+        client = mock.MagicMock()
+        client.read_namespaced_service.side_effect = ApiException(status=404)
         kub = kube.Kube('ns', 'api', None, None)
         with pytest.raises(kube.ServiceNotFoundException):
-            kub.get_remote_service()
+            kub.get_remote_service(client)
 
 
     @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
-    @mock.patch('twyla.kubedeploy.kube.kubernetes.client.AppsV1beta1Api')
-    def test_get_remote_service_rethrow(self, mock_client, _):
-        v1_beta = mock_client.return_value
-        v1_beta.read_namespaced_service.side_effect = ApiException(status=503)
+    def test_get_remote_service_rethrow(self, _):
+        client = mock.MagicMock()
+        client.read_namespaced_service.side_effect = ApiException(status=503)
         kub = kube.Kube('ns', 'api', None, None)
         with pytest.raises(ApiException):
-            kub.get_remote_service()
+            kub.get_remote_service(client)
 
 
     @mock.patch('twyla.kubedeploy.kube.open',
                 new=mock.mock_open(read_data=SERVICE))
     @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
-    @mock.patch('twyla.kubedeploy.kube.kubernetes.client.AppsV1beta1Api')
+    @mock.patch('twyla.kubedeploy.kube.Kube.api_from_object')
     def test_service_new(self, mock_client, _):
         v1_beta = mock_client.return_value
         v1_beta.read_namespaced_service.side_effect = ApiException(status=404)
@@ -503,7 +493,7 @@ class KubeTests(unittest.TestCase):
     @mock.patch('twyla.kubedeploy.kube.open',
                 new=mock.mock_open(read_data=SERVICE))
     @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
-    @mock.patch('twyla.kubedeploy.kube.kubernetes.client.AppsV1beta1Api')
+    @mock.patch('twyla.kubedeploy.kube.Kube.api_from_object')
     def test_service_exists(self, mock_client, _):
         v1_beta = mock_client.return_value
         v1_beta.read_namespaced_service.return_value = 'some_service'
@@ -520,7 +510,7 @@ class KubeTests(unittest.TestCase):
     @mock.patch('twyla.kubedeploy.kube.open',
                 new=mock.mock_open(read_data=SERVICE))
     @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
-    @mock.patch('twyla.kubedeploy.kube.kubernetes.client.AppsV1beta1Api')
+    @mock.patch('twyla.kubedeploy.kube.Kube.api_from_object')
     def test_service_api_exception(self, mock_client, _):
         v1_beta = mock_client.return_value
         v1_beta.read_namespaced_service.side_effect = ApiException(status=503)
@@ -538,8 +528,7 @@ class KubeTests(unittest.TestCase):
     @mock.patch('twyla.kubedeploy.kube.open',
                 new=mock.mock_open(read_data=TOOMANY))
     @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
-    @mock.patch('twyla.kubedeploy.kube.kubernetes.client.AppsV1beta1Api')
-    def test_service_too_many_services(self, mock_client, _):
+    def test_service_too_many_services(self, _):
         errors = mock.MagicMock()
         kub = kube.Kube('ns', 'api', mock.MagicMock(), errors)
         kub.load_objects_from_file()
@@ -549,14 +538,11 @@ class KubeTests(unittest.TestCase):
         (got) = errors.call_args[0][0]
         assert got == 'Only one service is currently allowed in deployment.yml'
 
-        mock_client.assert_called_once_with()
-
 
     @mock.patch('twyla.kubedeploy.kube.open',
                 new=mock.mock_open(read_data='---'))
     @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
-    @mock.patch('twyla.kubedeploy.kube.kubernetes.client.AppsV1beta1Api')
-    def test_service_no_services(self, mock_client, _):
+    def test_service_no_services(self, _):
         errors = mock.MagicMock()
         printer = mock.MagicMock()
         kub = kube.Kube('ns', 'api', printer, errors)
@@ -567,8 +553,6 @@ class KubeTests(unittest.TestCase):
         assert printer.call_count == 1
         (got) = printer.call_args[0][0]
         assert got == 'No service definition found in deployment.yml. Skipping'
-
-        mock_client.assert_called_once_with()
 
 
     @mock.patch('twyla.kubedeploy.kube.open',
