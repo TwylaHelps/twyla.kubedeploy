@@ -115,7 +115,30 @@ class Kube:
         kubernetes_type = self.type_name_from_data(data)
         api_client = kubernetes.client.ApiClient()
         res = Res(data=json.dumps(data))
-        return api_client.deserialize(res, kubernetes_type)
+        obj = api_client.deserialize(res, kubernetes_type)
+
+        # Hackaround missing intOrString support in the python client
+        # TODO: check how to fix that upstream
+        if kubernetes_type.endswith('Deployment'):
+            try:
+                int_val = int(obj.spec.strategy.rolling_update.max_surge)
+                obj.spec.strategy.rolling_update.max_surge = int_val
+            except:
+                pass
+            try:
+                int_val = int(obj.spec.strategy.rolling_update.max_unavailable)
+                obj.spec.strategy.rolling_update.max_unavailable = int_val
+            except:
+                pass
+        elif kubernetes_type.endswith('Service'):
+            for port in obj.spec.ports:
+                try:
+                    int_val = int(port.target_port)
+                    port.target_port = int_val
+                except:
+                    pass
+
+        return obj
 
 
     def load_objects_from_file(self):
