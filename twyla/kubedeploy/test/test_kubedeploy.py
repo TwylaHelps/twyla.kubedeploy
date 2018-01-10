@@ -56,6 +56,62 @@ spec:
         - containerPort: 80
 """
 
+DEPLOYMENT_WITH_STRATEGY = """
+apiVersion: apps/v1beta1 # for versions since 1.8.0 use apps/v1beta2
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  labels:
+    app: nginx
+spec:
+  strategy:
+    rollingUpdate:
+      maxSurge: 10%
+      maxUnavailable: 1
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.7.9
+        ports:
+        - containerPort: 80
+"""
+
+DEPLOYMENT_WITH_STRATEGY_FLIPPED = """
+apiVersion: apps/v1beta1 # for versions since 1.8.0 use apps/v1beta2
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  labels:
+    app: nginx
+spec:
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 10%
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.7.9
+        ports:
+        - containerPort: 80
+"""
+
 DEPLOYMENT_WITH_REPLICAS = """
 {deployment}
 status:
@@ -126,6 +182,32 @@ class KubeTests(unittest.TestCase):
         obj = kub.parse_data(data)
         api_name = kub.api_name_from_object(obj)
         assert api_name == 'AppsV1beta1Api'
+
+
+    @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
+    def test_strategy_parsing_none(self, _):
+        data = yaml.load(DEPLOYMENT)
+        kub = kube.Kube('ns', 'api', None, None)
+        obj = kub.parse_data(data)
+
+        assert obj.spec.strategy is None
+
+
+    @mock.patch('twyla.kubedeploy.kube.kubernetes.config')
+    def test_strategy_parsing(self, _):
+        data = yaml.load(DEPLOYMENT_WITH_STRATEGY)
+        kub = kube.Kube('ns', 'api', None, None)
+        obj = kub.parse_data(data)
+
+        assert obj.spec.strategy.rolling_update.max_surge == '10%'
+        assert obj.spec.strategy.rolling_update.max_unavailable == 1
+
+        data = yaml.load(DEPLOYMENT_WITH_STRATEGY_FLIPPED)
+        kub = kube.Kube('ns', 'api', None, None)
+        obj = kub.parse_data(data)
+
+        assert obj.spec.strategy.rolling_update.max_surge == 1
+        assert obj.spec.strategy.rolling_update.max_unavailable == '10%'
 
 
     @mock.patch('twyla.kubedeploy.kube.kubernetes.config')

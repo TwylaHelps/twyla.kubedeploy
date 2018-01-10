@@ -123,20 +123,20 @@ class Kube:
             try:
                 int_val = int(obj.spec.strategy.rolling_update.max_surge)
                 obj.spec.strategy.rolling_update.max_surge = int_val
-            except ValueError:
+            # ignore ValueError: cast to int fails,
+            # ignore AttributeError: one of the elements in the path does not
+            #                        support an operation
+            except (ValueError, AttributeError):
                 pass
             try:
                 int_val = int(obj.spec.strategy.rolling_update.max_unavailable)
                 obj.spec.strategy.rolling_update.max_unavailable = int_val
-            except ValueError:
+            except (ValueError, AttributeError):
                 pass
         elif kubernetes_type.endswith('Service'):
             for port in obj.spec.ports:
-                try:
-                    int_val = int(port.target_port)
-                    port.target_port = int_val
-                except ValueError:
-                    pass
+                int_val = int(port.target_port)
+                port.target_port = int_val
 
         return obj
 
