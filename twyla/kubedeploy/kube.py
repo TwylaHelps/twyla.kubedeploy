@@ -58,8 +58,8 @@ class Kube:
             deployment):
 
         info_template = Template('''
-{%- for c in deployment.spec.template.spec.containers -%}
 {{ meta.title }}:
+{% for c in deployment.spec.template.spec.containers -%}
     image: {{ c.image }}
     replicas: {{ deployment.status.readyReplicas }}/{{ deployment.status.replicas }}
 {%- endfor -%}
@@ -70,7 +70,8 @@ class Kube:
                                         deployment=deployment)
 
         for line in rendered.split('\n'):
-            self.printer(line)
+            if line:
+                self.printer(line)
 
         return
 
