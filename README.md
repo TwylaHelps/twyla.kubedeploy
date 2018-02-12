@@ -100,6 +100,7 @@ result will be sent to the Kubernetes API. The result is the same as calling
 
 - [ ] improve test coverage
 - [ ] rethink interface for printing messages
+- [x] dump deployments for use with `kubectl apply -f`
 - [x] support multi-document `deployment.yml` so other objects can be added (e.g. acompanying services)
 
 

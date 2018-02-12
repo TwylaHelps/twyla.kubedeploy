@@ -79,7 +79,6 @@ class KubectlTest(unittest.TestCase):
         kubectl.namespace = 'test-space'
         kubectl.get_deployment(name)
 
-        assert kubectl.args == expected
         mock_call.assert_called_once_with(expected_call)
 
 
@@ -92,5 +91,4 @@ class KubectlTest(unittest.TestCase):
         kubectl.namespace = 'test-space'
         kubectl.list_deployments()
 
-        assert kubectl.args == expected
         mock_call.assert_called_once_with(expected_call)

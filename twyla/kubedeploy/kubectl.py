@@ -10,21 +10,17 @@ class KubectlCallFailed(Exception):
 class Kubectl:
     def __init__(self):
         self.exe = 'kubectl'
-        self.args = [
-            'get',
-            'pods'
-        ]
         self.namespace = None
 
 
-    def _make_command(self):
+    def _make_command(self, args=['get', 'pods']):
         cmd = []
         cmd.append(self.exe)
 
         if self.namespace:
             cmd.extend(['--namespace', self.namespace])
 
-        cmd.extend(self.args)
+        cmd.extend(args)
 
         return cmd
 
@@ -39,25 +35,26 @@ class Kubectl:
         except subprocess.CalledProcessError:
             raise KubectlCallFailed(proc.stderr)
 
+        out = proc.stdout.decode('utf8')
         if expect_json:
-            return json.loads(proc.stdout.decode('utf8'))
+            return json.loads(out)
 
-        return proc.stdout.decode('utf8')
+        return out
 
 
     def apply(self, file_name):
-        self.args = ['apply', '-f', file_name]
-        return self._call(self._make_command(), expect_json=False)
+        args = ['apply', '-f', file_name]
+        return self._call(self._make_command(args), expect_json=False)
 
 
     def _get_entity_by_name(self, entity, name):
-        self.args = ['get', entity, name, '-o', 'json']
-        return self._call(self._make_command())
+        args = ['get', entity, name, '-o', 'json']
+        return self._call(self._make_command(args))
 
 
     def _list_entities(self, entity):
-        self.args = ['get', entity, '-o', 'json']
-        return self._call(self._make_command())
+        args = ['get', entity, '-o', 'json']
+        return self._call(self._make_command(args))
 
 
     def __getattr__(self, attr):
