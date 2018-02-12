@@ -12,6 +12,7 @@ GitPython==2.1.7
 google-auth==1.2.1
 idna==2.6
 ipaddress==1.0.18
+Jinja2==2.10
 jws==0.1.3
 kubernetes==3.0.0
 py==1.5.2

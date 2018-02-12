@@ -1,5 +1,4 @@
 import pytest
-import subprocess
 import unittest
 import unittest.mock as mock
 
@@ -51,9 +50,7 @@ class KubectlTest(unittest.TestCase):
         with pytest.raises(KubectlCallFailed) as error:
             kubectl._call(cmd)
 
-        assert error.value.args[0] == (b"ls: cannot access "
-                                       b"'/does/probably/not/exist': "
-                                       b"No such file or directory\n")
+        assert error.value.args[0].endswith(b'No such file or directory\n')
 
     @mock.patch('twyla.kubedeploy.kubectl.subprocess')
     @mock.patch('twyla.kubedeploy.kubectl.json')
