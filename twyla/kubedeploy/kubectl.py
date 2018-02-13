@@ -71,7 +71,10 @@ class Kubectl:
             # ['key1value1', 'key2=value2']
             selector_strings.append('='.join([k, v]))
 
-        return ['--selector', ','.join(selector_strings)]
+        if selector_strings:
+            return ['--selector', ','.join(selector_strings)]
+
+        return []
 
 
     def __getattr__(self, attr):

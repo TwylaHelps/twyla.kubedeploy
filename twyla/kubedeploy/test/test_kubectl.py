@@ -106,3 +106,15 @@ class KubectlTest(unittest.TestCase):
                                             'mylabel': 'myvalue'})
 
         mock_call.assert_called_once_with(expected_call)
+
+
+    def test_make_selector_args(self):
+        kubectl = Kubectl()
+        res = kubectl._make_selector_args(None)
+        assert res == []
+        res = kubectl._make_selector_args({})
+        assert res == []
+        res = kubectl._make_selector_args({'one': 'val'})
+        assert res == ['--selector', 'one=val']
+        res = kubectl._make_selector_args({'one': 'val', 'two': 'val2'})
+        assert res == ['--selector', 'one=val,two=val2']
