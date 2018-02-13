@@ -1,3 +1,4 @@
+import copy
 import os
 import shutil
 import sys
@@ -6,6 +7,8 @@ import tempfile
 import click
 import git
 import pip
+import yaml
+
 from twyla.kubedeploy import docker_helpers
 from twyla.kubedeploy.kube import Kube
 from twyla.kubedeploy.kubectl import Kubectl
@@ -207,12 +210,47 @@ def info(name: str, namespace: str):
 @click.option('--group',
               help='Value of the servicegroup selector to select by.',
               default='twyla')
-def cluster_info(group: str, namespace: str):
+@click.option('--dump-to',
+              help='Dump cluster info into kubectl compatible yaml file',
+              default=None)
+def cluster_info(dump_to: str, group: str, namespace: str):
     kubectl = Kubectl()
     kubectl.namespace = namespace
 
     state = kubectl.list_deployments(selectors={'servicegroup': group})
+    print_cluster_info(state)
 
+    if dump_to is not None:
+        deployable = scrub_cluster_info(state)
+        with open(dump_to, mode='w') as fd:
+            fd.write(yaml.dump(deployable))
+
+
+def scrub_cluster_info(state):
+    '''
+    scrub_cluster_info removes state information that is not required to deploy
+    the cluster state to another cluster.
+    '''
+    deployable = []
+    metadata_scrub = ['annotations', 'creationTimestamp',
+                      'generation', 'resourceVersion',
+                      'selfLink', 'uid']
+
+    for item in state.get('items'):
+        scrubbed_item = copy.deepcopy(item)
+        if scrubbed_item.get('status') is not None:
+            del scrubbed_item['status']
+
+        for data in metadata_scrub:
+            if scrubbed_item['metadata'].get(data) is not None:
+                del scrubbed_item['metadata'][data]
+
+        deployable.append(scrubbed_item)
+
+    return deployable
+
+
+def print_cluster_info(state):
     for item in state['items']:
         name = item['metadata']['name']
         prompt(name)
@@ -225,6 +263,7 @@ def cluster_info(group: str, namespace: str):
                 (f'replicas: {item["status"]["replicas"]} '
                  f'ready: {item["status"]["readyReplicas"]} '
                  f'updated: {item["status"]["updatedReplicas"]}'), 4)
+
 
 
 def main():

@@ -1,9 +1,11 @@
 import os
+import tempfile
 import traceback
 import unittest
 from unittest import mock
 
 from click.testing import CliRunner
+
 from twyla import kubedeploy
 
 REQUIREMENTS = '''
@@ -385,3 +387,331 @@ class DeployCommandTests(unittest.TestCase):
 
         mock_cluster_info.assert_called_once_with('deployments', selectors={
             'servicegroup': 'twyla'})
+
+
+    def test_scrub_cluster_info(self):
+        cluster_state = {
+            "apiVersion": "v1",
+            "items": [
+                {
+                    "apiVersion": "extensions/v1beta1",
+                    "kind": "Deployment",
+                    "metadata": {
+                        "annotations": {
+                            "deployment.kubernetes.io/revision": "88",
+                            "kubectl.kubernetes.io/last-applied-configuration": "{\"apiVersion\":\"extensions/v1beta1\",\"kind\":\"Deployment\",\"metadata\":{\"annotations\":{},\"name\":\"test-service\",\"namespace\":\"twyla\"},\"spec\":{\"replicas\":1,\"template\":{\"metadata\":{\"labels\":{\"app\":\"test-service\"}},\"spec\":{\"containers\":[{\"env\":[{\"name\":\"TWYLA_CLUSTER_NAME\",\"valueFrom\":{\"configMapKeyRef\":{\"key\":\"cluster-name\",\"name\":\"cluster-vars\"}}}],\"image\":\"twyla.azurecr.io/test-service:dd2d1f43\",\"imagePullPolicy\":\"Always\",\"name\":\"test-service\"}],\"imagePullSecrets\":[{\"name\":\"twyla-registry-login\"}]}}}}\n"
+                        },
+                        "creationTimestamp": "2017-10-16T14:55:37Z",
+                        "generation": 89,
+                        "labels": {
+                            "app": "test-service",
+                            "servicegroup": "twyla"
+                        },
+                        "name": "test-service",
+                        "namespace": "twyla",
+                        "resourceVersion": "16669147",
+                        "selfLink": "/apis/extensions/v1beta1/namespaces/twyla/deployments/test-service",
+                        "uid": "120abf54-b282-11e7-b58f-000d3a2bee3e"
+                    },
+                    "spec": {
+                        "progressDeadlineSeconds": 600,
+                        "replicas": 2,
+                        "revisionHistoryLimit": 2,
+                        "selector": {
+                            "matchLabels": {
+                                "app": "test-service"
+                            }
+                        },
+                        "strategy": {
+                            "rollingUpdate": {
+                                "maxSurge": "50%",
+                                "maxUnavailable": "50%"
+                            },
+                            "type": "RollingUpdate"
+                        },
+                        "template": {
+                            "metadata": {
+                                "creationTimestamp": None,
+                                "labels": {
+                                    "app": "test-service",
+                                    "name": "test-service"
+                                }
+                            },
+                            "spec": {
+                                "containers": [
+                                    {
+                                        "env": [
+                                            {
+                                                "name": "TWYLA_CLUSTER_NAME",
+                                                "valueFrom": {
+                                                    "configMapKeyRef": {
+                                                        "key": "cluster-name",
+                                                        "name": "cluster-vars"
+                                                    }
+                                                }
+                                            },
+                                            {
+                                                "name": "TWYLA_DOCUMENT_STORE_URI",
+                                                "valueFrom": {
+                                                    "secretKeyRef": {
+                                                        "key": "twyla_document_store_string",
+                                                        "name": "document-store-secrets"
+                                                    }
+                                                }
+                                            }
+                                        ],
+                                        "image": "twyla.azurecr.io/test-service:6c66871a",
+                                        "imagePullPolicy": "Always",
+                                        "name": "test-service",
+                                        "resources": {},
+                                        "terminationMessagePath": "/dev/termination-log",
+                                        "terminationMessagePolicy": "File"
+                                    }
+                                ],
+                                "dnsPolicy": "ClusterFirst",
+                                "imagePullSecrets": [
+                                    {
+                                        "name": "twyla-registry-login"
+                            }
+                                ],
+                                "restartPolicy": "Always",
+                                "schedulerName": "default-scheduler",
+                                "securityContext": {},
+                                "terminationGracePeriodSeconds": 30
+                            }
+                        }
+                    },
+                    "status": {
+                        "availableReplicas": 2,
+                        "conditions": [
+                            {
+                                "lastTransitionTime": "2018-01-23T08:42:18Z",
+                                "lastUpdateTime": "2018-01-23T08:42:18Z",
+                                "message": "Deployment has minimum availability.",
+                                "reason": "MinimumReplicasAvailable",
+                                "status": "True",
+                                "type": "Available"
+                            },
+                            {
+                                "lastTransitionTime": "2018-01-08T16:38:21Z",
+                                "lastUpdateTime": "2018-02-07T08:27:57Z",
+                                "message": "ReplicaSet \"test-service-2416043431\" has successfully progressed.",
+                                "reason": "NewReplicaSetAvailable",
+                                "status": "True",
+                                "type": "Progressing"
+                            }
+                        ],
+                        "observedGeneration": 89,
+                        "readyReplicas": 2,
+                        "replicas": 2,
+                        "updatedReplicas": 2
+                    }
+                }
+            ],
+            "kind": "List",
+            "metadata": {
+                "resourceVersion": "",
+                "selfLink": ""
+            }
+        }
+        res = kubedeploy.scrub_cluster_info(cluster_state)
+
+        for item in res:
+            assert item.get('status') is None
+            assert item['metadata'].get('annotations') is None
+            assert item['metadata'].get('creationTimestamp') is None
+            assert item['metadata'].get('generation') is None
+            assert item['metadata'].get('resourceVersion') is None
+            assert item['metadata'].get('selfLink') is None
+            assert item['metadata'].get('uid') is None
+
+
+    @mock.patch('twyla.kubedeploy.Kubectl._list_entities')
+    @mock.patch('twyla.kubedeploy.prompt')
+    def test_scrub_cluster_info(self, mock_printer, mock_list):
+        mock_list.return_value = {
+            "apiVersion": "v1",
+            "items": [
+                {
+                    "apiVersion": "extensions/v1beta1",
+                    "kind": "Deployment",
+                    "metadata": {
+                        "annotations": {
+                            "deployment.kubernetes.io/revision": "88",
+                            "kubectl.kubernetes.io/last-applied-configuration": "{\"apiVersion\":\"extensions/v1beta1\",\"kind\":\"Deployment\",\"metadata\":{\"annotations\":{},\"name\":\"test-service\",\"namespace\":\"twyla\"},\"spec\":{\"replicas\":1,\"template\":{\"metadata\":{\"labels\":{\"app\":\"test-service\"}},\"spec\":{\"containers\":[{\"env\":[{\"name\":\"TWYLA_CLUSTER_NAME\",\"valueFrom\":{\"configMapKeyRef\":{\"key\":\"cluster-name\",\"name\":\"cluster-vars\"}}}],\"image\":\"twyla.azurecr.io/test-service:dd2d1f43\",\"imagePullPolicy\":\"Always\",\"name\":\"test-service\"}],\"imagePullSecrets\":[{\"name\":\"twyla-registry-login\"}]}}}}\n"
+                        },
+                        "creationTimestamp": "2017-10-16T14:55:37Z",
+                        "generation": 89,
+                        "labels": {
+                            "app": "test-service",
+                            "servicegroup": "twyla"
+                        },
+                        "name": "test-service",
+                        "namespace": "twyla",
+                        "resourceVersion": "16669147",
+                        "selfLink": "/apis/extensions/v1beta1/namespaces/twyla/deployments/test-service",
+                        "uid": "120abf54-b282-11e7-b58f-000d3a2bee3e"
+                    },
+                    "spec": {
+                        "progressDeadlineSeconds": 600,
+                        "replicas": 2,
+                        "revisionHistoryLimit": 2,
+                        "selector": {
+                            "matchLabels": {
+                                "app": "test-service"
+                            }
+                        },
+                        "strategy": {
+                            "rollingUpdate": {
+                                "maxSurge": "50%",
+                                "maxUnavailable": "50%"
+                            },
+                            "type": "RollingUpdate"
+                        },
+                        "template": {
+                            "metadata": {
+                                "creationTimestamp": None,
+                                "labels": {
+                                    "app": "test-service",
+                                    "name": "test-service"
+                                }
+                            },
+                            "spec": {
+                                "containers": [
+                                    {
+                                        "env": [
+                                            {
+                                                "name": "TWYLA_CLUSTER_NAME",
+                                                "valueFrom": {
+                                                    "configMapKeyRef": {
+                                                        "key": "cluster-name",
+                                                        "name": "cluster-vars"
+                                                    }
+                                                }
+                                            },
+                                            {
+                                                "name": "TWYLA_DOCUMENT_STORE_URI",
+                                                "valueFrom": {
+                                                    "secretKeyRef": {
+                                                        "key": "twyla_document_store_string",
+                                                        "name": "document-store-secrets"
+                                                    }
+                                                }
+                                            }
+                                        ],
+                                        "image": "twyla.azurecr.io/test-service:6c66871a",
+                                        "imagePullPolicy": "Always",
+                                        "name": "test-service",
+                                        "resources": {},
+                                        "terminationMessagePath": "/dev/termination-log",
+                                        "terminationMessagePolicy": "File"
+                                    }
+                                ],
+                                "dnsPolicy": "ClusterFirst",
+                                "imagePullSecrets": [
+                                    {
+                                        "name": "twyla-registry-login"
+                            }
+                                ],
+                                "restartPolicy": "Always",
+                                "schedulerName": "default-scheduler",
+                                "securityContext": {},
+                                "terminationGracePeriodSeconds": 30
+                            }
+                        }
+                    },
+                    "status": {
+                        "availableReplicas": 2,
+                        "conditions": [
+                            {
+                                "lastTransitionTime": "2018-01-23T08:42:18Z",
+                                "lastUpdateTime": "2018-01-23T08:42:18Z",
+                                "message": "Deployment has minimum availability.",
+                                "reason": "MinimumReplicasAvailable",
+                                "status": "True",
+                                "type": "Available"
+                            },
+                            {
+                                "lastTransitionTime": "2018-01-08T16:38:21Z",
+                                "lastUpdateTime": "2018-02-07T08:27:57Z",
+                                "message": "ReplicaSet \"test-service-2416043431\" has successfully progressed.",
+                                "reason": "NewReplicaSetAvailable",
+                                "status": "True",
+                                "type": "Progressing"
+                            }
+                        ],
+                        "observedGeneration": 89,
+                        "readyReplicas": 2,
+                        "replicas": 2,
+                        "updatedReplicas": 2
+                    }
+                }
+            ],
+            "kind": "List",
+            "metadata": {
+                "resourceVersion": "",
+                "selfLink": ""
+            }
+        }
+
+        tmp = tempfile.NamedTemporaryFile(delete=False)
+        runner = CliRunner()
+        result = runner.invoke(kubedeploy.cluster_info,
+                               ['--namespace',
+                                'a-namespace',
+                                '--dump-to',
+                                tmp.name])
+        if result.exception:
+            print(''.join(traceback.format_exception(*result.exc_info)))
+            self.fail()
+
+        mock_list.assert_called_once_with('deployments', selectors={
+            'servicegroup': 'twyla'})
+
+        print(tmp.name)
+        return
+        with open(tmp.name) as fd:
+            content = fd.read()
+
+        assert content == '''
+- apiVersion: extensions/v1beta1
+  kind: Deployment
+  metadata:
+    labels: {app: test-service, servicegroup: twyla}
+    name: test-service
+    namespace: twyla
+  spec:
+    progressDeadlineSeconds: 600
+    replicas: 2
+    revisionHistoryLimit: 2
+    selector:
+      matchLabels: {app: test-service}
+    strategy:
+      rollingUpdate: {maxSurge: 50%, maxUnavailable: 50%}
+      type: RollingUpdate
+    template:
+      metadata:
+        creationTimestamp: null
+        labels: {app: test-service, name: test-service}
+      spec:
+        containers:
+        - env:
+          - name: TWYLA_CLUSTER_NAME
+            valueFrom:
+              configMapKeyRef: {key: cluster-name, name: cluster-vars}
+          - name: TWYLA_DOCUMENT_STORE_URI
+            valueFrom:
+              secretKeyRef: {key: twyla_document_store_string, name: document-store-secrets}
+          image: twyla.azurecr.io/test-service:6c66871a
+          imagePullPolicy: Always
+          name: test-service
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+        dnsPolicy: ClusterFirst
+        imagePullSecrets:
+        - {name: twyla-registry-login}
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30'''
