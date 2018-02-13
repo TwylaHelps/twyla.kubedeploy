@@ -325,3 +325,63 @@ class DeployCommandTests(unittest.TestCase):
             error_printer=kubedeploy.error_prompt)
         kube = mock_Kube.return_value
         kube.info.assert_called_once_with()
+
+
+    @mock.patch('twyla.kubedeploy.Kubectl._list_entities')
+    @mock.patch('twyla.kubedeploy.prompt')
+    def test_cluster_info(self, mock_printer, mock_cluster_info):
+        mock_cluster_info.return_value = {
+            'items': [{
+                'metadata': {
+                    'name': 'deployment1'
+                },
+                'spec': {
+                    'template': {
+                        'spec': {
+                            'containers': [
+                                {
+                                    'image': 'myreg/myservice1:ver001'
+                                },
+                                {
+                                    'image': 'myreg/mysidecar1:ver002'
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            {
+                'metadata': {
+                    'name': 'deployment2'
+                },
+                'status': {
+                    'replicas': 3,
+                    'readyReplicas': 3,
+                    'updatedReplicas': 3
+                },
+                'spec': {
+                    'template': {
+                        'spec': {
+                            'containers': [
+                                {
+                                    'image': 'myreg/myservice2:ver001'
+                                },
+                                {
+                                    'image': 'myreg/mysidecar2:ver002'
+                                }
+                            ]
+                        }
+                    }
+                }
+            }]
+        }
+        runner = CliRunner()
+        result = runner.invoke(kubedeploy.cluster_info,
+                               ['--namespace',
+                                'a-namespace'])
+        if result.exception:
+            print(''.join(traceback.format_exception(*result.exc_info)))
+            self.fail()
+
+        mock_cluster_info.assert_called_once_with('deployments', selectors={
+            'servicegroup': 'twyla'})

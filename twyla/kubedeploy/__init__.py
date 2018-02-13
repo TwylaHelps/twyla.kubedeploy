@@ -8,6 +8,7 @@ import git
 import pip
 from twyla.kubedeploy import docker_helpers
 from twyla.kubedeploy.kube import Kube
+from twyla.kubedeploy.kubectl import Kubectl
 from twyla.kubedeploy.prompt import error_prompt, prompt
 
 
@@ -198,6 +199,32 @@ def info(name: str, namespace: str):
                 printer=prompt,
                 error_printer=error_prompt)
     kube.info()
+
+
+@cli.command()
+@click.option('--namespace', help='Namespace in the cluster.',
+              default='default')
+@click.option('--group',
+              help='Value of the servicegroup selector to select by.',
+              default='twyla')
+def cluster_info(group: str, namespace: str):
+    kubectl = Kubectl()
+    kubectl.namespace = namespace
+
+    state = kubectl.list_deployments(selectors={'servicegroup': group})
+
+    for item in state['items']:
+        name = item['metadata']['name']
+        prompt(name)
+        for cont in item['spec']['template']['spec']['containers']:
+            prompt(cont['image'], 4)
+        if item.get('status') is None:
+            error_prompt('No replicas running.', 4)
+        else:
+            prompt(
+                (f'replicas: {item["status"]["replicas"]} '
+                 f'ready: {item["status"]["readyReplicas"]} '
+                 f'updated: {item["status"]["updatedReplicas"]}'), 4)
 
 
 def main():
