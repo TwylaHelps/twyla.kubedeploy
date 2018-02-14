@@ -668,16 +668,15 @@ class DeployCommandTests(unittest.TestCase):
         mock_list.assert_called_once_with('deployments', selectors={
             'servicegroup': 'twyla'})
 
-        print(tmp.name)
-        return
         with open(tmp.name) as fd:
             content = fd.read()
 
-        assert content == '''
-- apiVersion: extensions/v1beta1
+        assert content == '''- apiVersion: extensions/v1beta1
   kind: Deployment
   metadata:
-    labels: {app: test-service, servicegroup: twyla}
+    labels:
+      app: test-service
+      servicegroup: twyla
     name: test-service
     namespace: twyla
   spec:
@@ -685,23 +684,32 @@ class DeployCommandTests(unittest.TestCase):
     replicas: 2
     revisionHistoryLimit: 2
     selector:
-      matchLabels: {app: test-service}
+      matchLabels:
+        app: test-service
     strategy:
-      rollingUpdate: {maxSurge: 50%, maxUnavailable: 50%}
+      rollingUpdate:
+        maxSurge: 50%
+        maxUnavailable: 50%
       type: RollingUpdate
     template:
       metadata:
         creationTimestamp: null
-        labels: {app: test-service, name: test-service}
+        labels:
+          app: test-service
+          name: test-service
       spec:
         containers:
         - env:
           - name: TWYLA_CLUSTER_NAME
             valueFrom:
-              configMapKeyRef: {key: cluster-name, name: cluster-vars}
+              configMapKeyRef:
+                key: cluster-name
+                name: cluster-vars
           - name: TWYLA_DOCUMENT_STORE_URI
             valueFrom:
-              secretKeyRef: {key: twyla_document_store_string, name: document-store-secrets}
+              secretKeyRef:
+                key: twyla_document_store_string
+                name: document-store-secrets
           image: twyla.azurecr.io/test-service:6c66871a
           imagePullPolicy: Always
           name: test-service
@@ -710,8 +718,9 @@ class DeployCommandTests(unittest.TestCase):
           terminationMessagePolicy: File
         dnsPolicy: ClusterFirst
         imagePullSecrets:
-        - {name: twyla-registry-login}
+        - name: twyla-registry-login
         restartPolicy: Always
         schedulerName: default-scheduler
         securityContext: {}
-        terminationGracePeriodSeconds: 30'''
+        terminationGracePeriodSeconds: 30
+'''

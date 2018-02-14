@@ -223,7 +223,7 @@ def cluster_info(dump_to: str, group: str, namespace: str):
     if dump_to is not None:
         deployable = scrub_cluster_info(state)
         with open(dump_to, mode='w') as fd:
-            fd.write(yaml.dump(deployable))
+            fd.write(yaml.dump(deployable, default_flow_style=False))
 
 
 def scrub_cluster_info(state):
