@@ -88,6 +88,26 @@ result will be sent to the Kubernetes API. The result is the same as calling
                         --image <service> \
                         --dry
 
+### Replicating Deployment Versions
+
+To replicate versions of deployments to another cluster `kubedeploy` provides a
+way to dump and apply a list of deployments selected by label.
+
+    $ kubedeploy cluster_info --namespace twyla \
+                              --group front-end \
+                              --dump-to demo.yml
+
+This command will dump the definitions of all deployments with a label
+`servicegroup` of `front-end` to the file `demo.yml`. The objects will be
+scrubbed of cluster specific information like status and object history.
+
+It can be applied to a different cluster after switching the Kubernetes context
+or configuration.
+
+    $ kubedeploy apply demo.yml
+
+This will apply the list to the other cluster. The count of replicas will be
+preserved on the target cluster if the deployment exists.
 
 ## Known Bugs
 

@@ -231,7 +231,12 @@ def scrub_cluster_info(state):
     scrub_cluster_info removes state information that is not required to deploy
     the cluster state to another cluster.
     '''
-    deployable = []
+    deployable = {
+        'apiVersion': 'v1',
+        'kind': 'List',
+        'metadata': {},
+        'items': []
+    }
     metadata_scrub = ['annotations', 'creationTimestamp',
                       'generation', 'resourceVersion',
                       'selfLink', 'uid']
@@ -245,7 +250,7 @@ def scrub_cluster_info(state):
             if scrubbed_item['metadata'].get(data) is not None:
                 del scrubbed_item['metadata'][data]
 
-        deployable.append(scrubbed_item)
+        deployable['items'].append(scrubbed_item)
 
     return deployable
 
@@ -263,7 +268,6 @@ def print_cluster_info(state):
                 (f'replicas: {item["status"]["replicas"]} '
                  f'ready: {item["status"]["readyReplicas"]} '
                  f'updated: {item["status"]["updatedReplicas"]}'), 4)
-
 
 
 def main():

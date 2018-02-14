@@ -671,7 +671,9 @@ class DeployCommandTests(unittest.TestCase):
         with open(tmp.name) as fd:
             content = fd.read()
 
-        assert content == '''- apiVersion: extensions/v1beta1
+        assert content == '''apiVersion: v1
+items:
+- apiVersion: extensions/v1beta1
   kind: Deployment
   metadata:
     labels:
@@ -723,4 +725,6 @@ class DeployCommandTests(unittest.TestCase):
         schedulerName: default-scheduler
         securityContext: {}
         terminationGracePeriodSeconds: 30
+kind: List
+metadata: {}
 '''
