@@ -11,7 +11,7 @@ import yaml
 
 from twyla.kubedeploy import docker_helpers
 from twyla.kubedeploy.kube import Kube
-from twyla.kubedeploy.kubectl import Kubectl
+from twyla.kubedeploy.kubectl import Kubectl, KubectlCallFailed
 from twyla.kubedeploy.prompt import error_prompt, prompt
 
 
@@ -268,6 +268,32 @@ def print_cluster_info(state):
                 (f'replicas: {item["status"]["replicas"]} '
                  f'ready: {item["status"]["readyReplicas"]} '
                  f'updated: {item["status"]["updatedReplicas"]}'), 4)
+
+
+@cli.command()
+@click.option('--from-file',
+              help='File containing a Kubernetes List of deployments',
+              default=None)
+def apply(from_file: str):
+    # Load the deployments from file and get the current count of replicas in
+    # the target cluster for each of the deployments. Then update the replicas
+    # to match the target cluster. Save the file and pass on to kubectl apply.
+    with open(from_file) as fd:
+        content = fd.read()
+    kube_list = yaml.load(content)
+
+    kubectl = Kubectl()
+    kubectl.update_replicas(kube_list)
+
+    with open(from_file, mode='w') as fd:
+        fd.write(yaml.dump(kube_list, default_flow_style=False))
+
+    try:
+        lines = kubectl.apply(from_file)
+        for line in lines.split('\n'):
+            prompt(line)
+    except KubectlCallFailed as e:
+        error_prompt(e)
 
 
 def main():

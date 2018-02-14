@@ -1,6 +1,8 @@
-import json
 import functools
+import json
 import subprocess
+
+import yaml
 
 
 class KubectlCallFailed(Exception):
@@ -26,6 +28,7 @@ class Kubectl:
 
 
     def _call(self, command, expect_json=True):
+        print(' '.join(command))
         try:
             proc = subprocess.run(
                 command,
@@ -88,3 +91,17 @@ class Kubectl:
             return functools.partial(
                 self._list_entities,
                 attr[len(_list):])
+
+
+    def update_replicas(self, kube_list):
+        for deployment in kube_list['items']:
+            namespace = deployment['metadata'].get('namespace') or 'default'
+            name = deployment['metadata']['name']
+
+            # NOTE: Setting the namespace for every deployment currently makes
+            # limited sense as only one namespace is supported for dumping the
+            # file in the first place. It is nontheless required at least once.
+            self.namespace = namespace
+            remote = json.loads(self.get_deployment(name))
+
+            deployment['spec']['replicas'] = remote['spec']['replicas']

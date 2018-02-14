@@ -104,7 +104,7 @@ scrubbed of cluster specific information like status and object history.
 It can be applied to a different cluster after switching the Kubernetes context
 or configuration.
 
-    $ kubedeploy apply demo.yml
+    $ kubedeploy apply --from-file demo.yml
 
 This will apply the list to the other cluster. The count of replicas will be
 preserved on the target cluster if the deployment exists.
