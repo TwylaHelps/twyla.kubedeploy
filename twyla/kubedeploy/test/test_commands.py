@@ -4,9 +4,11 @@ import traceback
 import unittest
 from unittest import mock
 
+import yaml
 from click.testing import CliRunner
 
 from twyla import kubedeploy
+from twyla.kubedeploy.kubectl import KubectlCallFailed
 
 REQUIREMENTS = '''
 some_package==1.2.3
@@ -654,7 +656,7 @@ class DeployCommandTests(unittest.TestCase):
             }
         }
 
-        tmp = tempfile.NamedTemporaryFile(delete=False)
+        tmp = tempfile.NamedTemporaryFile()
         runner = CliRunner()
         result = runner.invoke(kubedeploy.cluster_info,
                                ['--namespace',
@@ -728,3 +730,109 @@ items:
 kind: List
 metadata: {}
 '''
+
+    @mock.patch('twyla.kubedeploy.Kubectl')
+    @mock.patch('twyla.kubedeploy.prompt')
+    def test_apply(self, mock_prompt, mock_kubectl):
+        content = b'''apiVersion: v1
+items:
+- apiVersion: extensions/v1beta1
+  kind: Deployment
+  metadata:
+    labels:
+      app: test-service
+      servicegroup: twyla
+    name: test-service
+    namespace: twyla
+  spec:
+    progressDeadlineSeconds: 600
+    replicas: 2
+    revisionHistoryLimit: 2
+    selector:
+      matchLabels:
+        app: test-service
+    strategy:
+      rollingUpdate:
+        maxSurge: 50%
+        maxUnavailable: 50%
+      type: RollingUpdate
+    template:
+      metadata:
+        creationTimestamp: null
+        labels:
+          app: test-service
+          name: test-service
+      spec:
+        containers:
+        - env:
+          - name: TWYLA_CLUSTER_NAME
+            valueFrom:
+              configMapKeyRef:
+                key: cluster-name
+                name: cluster-vars
+          - name: TWYLA_DOCUMENT_STORE_URI
+            valueFrom:
+              secretKeyRef:
+                key: twyla_document_store_string
+                name: document-store-secrets
+          image: twyla.azurecr.io/test-service:6c66871a
+          imagePullPolicy: Always
+          name: test-service
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+        dnsPolicy: ClusterFirst
+        imagePullSecrets:
+        - name: twyla-registry-login
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+kind: List
+metadata: {}'''
+        tmp = tempfile.NamedTemporaryFile(delete=False)
+        tmp.write(content)
+        tmp.close()
+        mock_kubectl.return_value.apply.return_value = '''some
+test
+output'''
+
+        runner = CliRunner()
+        result = runner.invoke(kubedeploy.apply,
+                               ['--from-file',
+                                tmp.name])
+        if result.exception:
+            print(''.join(traceback.format_exception(*result.exc_info)))
+            self.fail()
+
+        mock_kubectl.return_value.update_replicas.assert_called_once_with(
+            yaml.load(content))
+        mock_kubectl.return_value.apply.assert_called_once_with(
+            tmp.name)
+        assert mock_prompt.call_count == 3
+        (one, two, three) = mock_prompt.call_args_list
+        assert one == mock.call('some')
+        assert two == mock.call('test')
+        assert three == mock.call('output')
+
+    @mock.patch('twyla.kubedeploy.Kubectl')
+    @mock.patch('twyla.kubedeploy.error_prompt')
+    def test_apply_fail(self, mock_prompt, mock_kubectl):
+        def raiser(x):
+            raise KubectlCallFailed('some error output')
+
+        mock_kubectl.return_value.apply.side_effect = raiser
+        content = b'some: yaml'
+        tmp = tempfile.NamedTemporaryFile(delete=False)
+        tmp.write(content)
+        tmp.close()
+
+        runner = CliRunner()
+        result = runner.invoke(kubedeploy.apply,
+                               ['--from-file',
+                                tmp.name])
+        if result.exception:
+            print(''.join(traceback.format_exception(*result.exc_info)))
+            self.fail()
+
+        mock_prompt.assert_called_once_with('some error output')

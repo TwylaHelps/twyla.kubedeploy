@@ -293,7 +293,7 @@ def apply(from_file: str):
         for line in lines.split('\n'):
             prompt(line)
     except KubectlCallFailed as e:
-        error_prompt(e)
+        error_prompt(str(e))
 
 
 def main():
