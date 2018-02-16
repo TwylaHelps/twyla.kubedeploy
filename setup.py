@@ -4,12 +4,11 @@ dependencies = [
     'click>=6.7',
     'colorama>=0.3.9',
     'docker>=2.6.1',
+    'docker_registry_client>=0.5.2',
     'GitPython>=2.1.7',
-    'kubernetes>=3.0.0',
+    'Jinja2>=2.10',
     'PyYAML>=3.12',
     'requests>=2.18.4',
-    'websocket-client<=0.40.0,>=0.32.0',
-    'docker_registry_client>=0.5.2'
 ]
 
 setup(
