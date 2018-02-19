@@ -465,6 +465,55 @@ key2: val2
         kube.info.assert_called_once_with()
 
 
+    @mock.patch('twyla.kubedeploy.set_config')
+    @mock.patch('twyla.kubedeploy.Kube')
+    def test_config_from_file(self, mock_Kube, mock_set_config):
+        runner = CliRunner()
+        env = {
+            kubedeploy.KUBEDEPLOY_NAME: 'test-service',
+            kubedeploy.KUBEDEPLOY_NAMESPACE: 'anamespace'
+        }
+        result = runner.invoke(kubedeploy.info, env=env)
+
+        if result.exception:
+            print(''.join(traceback.format_exception(*result.exc_info)))
+            self.fail()
+
+        mock_Kube.assert_called_once_with(
+            namespace='anamespace',
+            deployment_name='test-service',
+            printer=kubedeploy.prompt,
+            error_printer=kubedeploy.error_prompt)
+        kube = mock_Kube.return_value
+        kube.info.assert_called_once_with()
+        mock_set_config.called_once_with(kubedeploy.CONFIG_FILE)
+
+
+    @mock.patch('twyla.kubedeploy.set_config')
+    @mock.patch('twyla.kubedeploy.Kube')
+    def test_config_override(self, mock_Kube, mock_set_config):
+        runner = CliRunner()
+        env = {
+            kubedeploy.KUBEDEPLOY_NAME: 'test-service',
+            kubedeploy.KUBEDEPLOY_NAMESPACE: 'anamespace'
+        }
+        result = runner.invoke(kubedeploy.info,
+                               ['--namespace', 'something'], env=env)
+
+        if result.exception:
+            print(''.join(traceback.format_exception(*result.exc_info)))
+            self.fail()
+
+        mock_Kube.assert_called_once_with(
+            namespace='something',
+            deployment_name='test-service',
+            printer=kubedeploy.prompt,
+            error_printer=kubedeploy.error_prompt)
+        kube = mock_Kube.return_value
+        kube.info.assert_called_once_with()
+        mock_set_config.called_once_with(kubedeploy.CONFIG_FILE)
+
+
     @mock.patch('twyla.kubedeploy.Kubectl._list_entities')
     @mock.patch('twyla.kubedeploy.prompt')
     def test_cluster_info(self, mock_printer, mock_cluster_info):

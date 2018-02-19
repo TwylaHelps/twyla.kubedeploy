@@ -17,6 +17,7 @@ from twyla.kubedeploy.prompt import error_prompt, prompt
 
 # Constants equivalent to commonly used environment variables to configure
 # kubedeploy.
+CONFIG_FILE = 'kubedeploy.yml'
 KUBEDEPLOY_NAME = 'KUBEDEPLOY_NAME'
 KUBEDEPLOY_NAMESPACE = 'KUBEDEPLOY_NAMESPACE'
 KUBEDEPLOY_IMAGE = 'KUBEDEPLOY_IMAGE'
@@ -134,8 +135,7 @@ def set_config(config_file):
 @click.group()
 @click.pass_context
 def cli(ctx: click.Context):
-    config_file = 'kubedeploy.yml'
-    set_config(config_file)
+    set_config(CONFIG_FILE)
     ctx.obj = {}
 
 
