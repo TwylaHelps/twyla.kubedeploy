@@ -154,13 +154,10 @@ Example:
 ## Known Bugs
 
 - limited keyring support (should work on MacOS though)
-- services are assumed to have the same name as the deployment (could be a
-  feature though)
-
 
 ## Todo
 
-- [ ] improve test coverage
+- [x] improve test coverage
 - [ ] rethink interface for printing messages
 - [x] dump deployments for use with `kubectl apply -f`
 - [x] support multi-document `deployment.yml` so other objects can be added (e.g. acompanying services)
@@ -168,6 +165,6 @@ Example:
 
 ## Whishlist
 
-- [ ] support config files additionally to command line knobs
+- [x] support config files additionally to command line knobs
 - [ ] support `rkt`
 - [x] support non-Python services when building images
