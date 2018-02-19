@@ -4,6 +4,7 @@ import traceback
 import unittest
 from unittest import mock
 
+import pytest
 import yaml
 from click.testing import CliRunner
 
@@ -18,6 +19,124 @@ git+ssh://git_package==0.0.1
 
 
 class DeployCommandTests(unittest.TestCase):
+
+    @mock.patch('twyla.kubedeploy.prompt')
+    @mock.patch('twyla.kubedeploy.git')
+    def test_head_of_local(self, mock_git, mock_prompt):
+        commitish = 'commitish'
+        mock_repo = mock_git.Repo.return_value
+        mock_repo.head.commit = commitish
+        mock_repo.git.rev_parse.return_value = ['HEAD']
+
+        test_dir = 'test-dir'
+        test_branch = 'feat/test'
+        head = kubedeploy.head_of(working_directory=test_dir,
+                                  branch=test_branch,
+                                  local=True)
+
+        mock_git.Repo.assert_called_once_with(test_dir)
+        mock_repo.git.rev_parse.assert_called_once_with(commitish, short=8)
+
+        mock_prompt.assert_not_called()
+
+        assert head == ['HEAD']
+
+
+    @mock.patch('twyla.kubedeploy.error_prompt')
+    @mock.patch('twyla.kubedeploy.prompt')
+    @mock.patch('twyla.kubedeploy.git')
+    # NOTE: exiting should probably be handed up in the call stack by
+    # reraising.
+    @mock.patch('twyla.kubedeploy.sys.exit')
+    def test_head_of_inconclusive(self, mock_exit,
+                                  mock_git, mock_prompt, mock_error_prompt):
+        mock_exit.side_effect = SystemExit
+        mock_repo = mock_git.Repo.return_value
+        type(mock_repo).active_branch = mock.PropertyMock(
+            side_effect=TypeError)
+
+        test_dir = 'test-dir'
+        with pytest.raises(SystemExit):
+            kubedeploy.head_of(working_directory=test_dir,
+                               branch=None,
+                               local=True)
+
+        mock_error_prompt.assert_called_once_with(
+            'No branch given and current status is inconclusive: ')
+
+        mock_exit.assert_called_once_with(1)
+
+
+    @mock.patch('twyla.kubedeploy.prompt')
+    @mock.patch('twyla.kubedeploy.git')
+    @mock.patch('twyla.kubedeploy.sys.exit')
+    def test_head_single_remote(self, mock_exit, mock_git, mock_prompt):
+        mock_exit.side_effect = SystemExit
+        commitish = 'commitish'
+        mock_repo = mock_git.Repo.return_value
+        mock_repo.head.commit = commitish
+        mock_repo.git.rev_parse.return_value = ['HEAD']
+        ref = mock.MagicMock()
+        ref.name = 'origin/feat/test'
+        ref.commit = 'commitish'
+        origin = mock.MagicMock()
+        origin.name = 'origin'
+        origin.refs = [ref]
+        mock_repo.remotes = [origin]
+
+        test_dir = 'test-dir'
+        test_branch = 'feat/test'
+        head = kubedeploy.head_of(working_directory=test_dir,
+                                  branch=test_branch)
+
+        mock_git.Repo.assert_called_once_with(test_dir)
+        mock_repo.git.rev_parse.assert_called_once_with('commitish', short=8)
+        origin.fetch.assert_called_once_with()
+
+        assert head == ['HEAD']
+
+        mock_exit.assert_not_called()
+
+
+    @mock.patch('twyla.kubedeploy.prompt')
+    @mock.patch('twyla.kubedeploy.git')
+    @mock.patch('twyla.kubedeploy.sys.exit')
+    def test_head_multi_remote_difference(self, mock_exit,
+                                          mock_git, mock_prompt):
+        mock_exit.side_effect = SystemExit
+        commitish = 'commitish'
+        mock_repo = mock_git.Repo.return_value
+        mock_repo.head.commit = commitish
+        mock_repo.git.rev_parse.return_value = 'HEAD'
+
+        ref1 = mock.MagicMock()
+        ref1.name = 'origin/feat/test'
+        ref1.commit = 'commitish_1'
+        origin = mock.MagicMock()
+        origin.name = 'origin'
+        origin.refs = [ref1]
+
+        ref = mock.MagicMock()
+        ref.name = 'origin/feat/test'
+        ref.commit = 'commitish_2'
+        upstream = mock.MagicMock()
+        upstream.name = 'origin'
+        upstream.refs = [ref]
+
+        mock_repo.remotes = [origin, upstream]
+
+        test_dir = 'test-dir'
+        test_branch = 'feat/test'
+        with pytest.raises(SystemExit):
+            kubedeploy.head_of(working_directory=test_dir,
+                               branch=test_branch)
+
+        mock_git.Repo.assert_called_once_with(test_dir)
+        assert mock_repo.git.rev_parse.call_count == 2
+        origin.fetch.assert_called_once_with()
+
+        mock_exit.assert_called_once_with(1)
+
 
     @mock.patch('twyla.kubedeploy.docker_helpers.docker_image_exists')
     @mock.patch('twyla.kubedeploy.Kube')
