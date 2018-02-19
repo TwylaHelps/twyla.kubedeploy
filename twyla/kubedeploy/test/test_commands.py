@@ -138,6 +138,21 @@ class DeployCommandTests(unittest.TestCase):
         mock_exit.assert_called_once_with(1)
 
 
+    def test_set_config(self):
+        config = b'''
+key1: val1
+key2: val2
+        '''
+        tmp_file = tempfile.NamedTemporaryFile(delete=False)
+        tmp_file.write(config)
+        tmp_file.close()
+
+        kubedeploy.set_config(tmp_file.name)
+
+        assert os.environ['KUBEDEPLOY_KEY1'] == 'val1'
+        assert os.environ['KUBEDEPLOY_KEY2'] == 'val2'
+
+
     @mock.patch('twyla.kubedeploy.docker_helpers.docker_image_exists')
     @mock.patch('twyla.kubedeploy.Kube')
     @mock.patch('twyla.kubedeploy.head_of')

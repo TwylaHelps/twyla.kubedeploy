@@ -15,6 +15,18 @@ from twyla.kubedeploy.kubectl import Kubectl, KubectlCallFailed
 from twyla.kubedeploy.prompt import error_prompt, prompt
 
 
+# Constants equivalent to commonly used environment variables to configure
+# kubedeploy.
+KUBEDEPLOY_NAME = 'KUBEDEPLOY_NAME'
+KUBEDEPLOY_NAMESPACE = 'KUBEDEPLOY_NAMESPACE'
+KUBEDEPLOY_IMAGE = 'KUBEDEPLOY_IMAGE'
+KUBEDEPLOY_REGISTRY = 'KUBEDEPLOY_REGISTRY'
+KUBEDEPLOY_VARIANTS = 'KUBEDEPLOY_VARIANTS'
+KUBEDEPLOY_GROUP = 'KUBEDEPLOY_GROUP'
+KUBEDEPLOY_BRANCH = 'KUBEDEPLOY_BRANCH'
+KUBEDEPLOY_VERSION = 'KUBEDEPLOY_VERSION'
+
+
 def download_requirements(force: bool=False):
     if not os.path.isfile('requirements.txt'):
         return
@@ -42,7 +54,8 @@ def download_requirements(force: bool=False):
     shutil.move(tmp, dest)
 
 
-def head_of(working_directory: str, branch: str=None, local: bool=False) -> str:
+def head_of(working_directory: str,
+            branch: str=None, local: bool=False) -> str:
     repo = git.Repo(working_directory)
     if branch is None:
         try:
@@ -106,24 +119,40 @@ def head_of(working_directory: str, branch: str=None, local: bool=False) -> str:
     return repo.git.rev_parse(remote_refs[0].commit, short=8)
 
 
+def set_config(config_file):
+    # load config from file and set environment variables accordingly for use
+    # by click later on
+    config = {}
+    if os.path.isfile(config_file):
+        with open(config_file) as fd:
+            config = yaml.load(fd)
+
+    for key, value in config.items():
+        os.environ[f'KUBEDEPLOY_{key.upper()}'] = value
+
+
 @click.group()
 @click.pass_context
 def cli(ctx: click.Context):
+    config_file = 'kubedeploy.yml'
+    set_config(config_file)
     ctx.obj = {}
 
 
 @cli.command()
-@click.option('--registry', help='Docker registry name.', required=True)
+@click.option('--registry', help='Docker registry name.',
+              envvar=KUBEDEPLOY_REGISTRY, required=True)
 @click.option('--image', help='Docker image name.',
-              required=True)
+              envvar=KUBEDEPLOY_IMAGE, required=True)
 @click.option('--name', help='Name of the deployment.',
-              required=True)
+              envvar=KUBEDEPLOY_NAME, required=True)
 @click.option('--namespace', help='The destination namespace in the cluster.',
-              default='default')
+              envvar=KUBEDEPLOY_NAMESPACE, default='default')
 @click.option('--branch', help='The git branch to deploy. Defaults to master.',
-              default='master')
+              envvar=KUBEDEPLOY_BRANCH, default='master')
 @click.option('--version', help='Version of API to build and deploy. Will'
-              'replace if it already exists.')
+                                'replace if it already exists.',
+              envvar=KUBEDEPLOY_VERSION)
 @click.option('--dry/--no-dry', help='Run without building, pushing, and'
               ' deploying anything',
               default=False)
@@ -164,11 +193,13 @@ def deploy(registry: str, image: str, name: str, namespace: str, branch: str,
 
 
 @cli.command()
-@click.option('--registry', help='Docker registry name.', required=True)
+@click.option('--registry', help='Docker registry name.',
+              envvar=KUBEDEPLOY_REGISTRY, required=True)
 @click.option('--image', help='Docker image name.',
-              required=True)
-@click.option('--version', help='Version of API to build. Will replace if it'
-              ' already exists.', default=None)
+              envvar=KUBEDEPLOY_IMAGE, required=True)
+@click.option('--version', help='Git commit ID or branch to build and deploy.'
+              ' Will replace if it already exists.', envvar=KUBEDEPLOY_VERSION,
+              default=None)
 def build(registry: str, image: str, version: str):
     if version is None:
         version = head_of(None, local=True)
@@ -179,11 +210,13 @@ def build(registry: str, image: str, version: str):
 
 
 @cli.command()
-@click.option('--registry', help='Docker registry name.', required=True)
+@click.option('--registry', help='Docker registry name.',
+              envvar=KUBEDEPLOY_REGISTRY, required=True)
 @click.option('--image', help='Docker image name.',
-              required=True)
+              envvar=KUBEDEPLOY_IMAGE, required=True)
 @click.option('--version', help='Git commit ID or branch to build and deploy.'
-              ' Will replace if it already exists.', default=None)
+              ' Will replace if it already exists.', envvar=KUBEDEPLOY_VERSION,
+              default=None)
 def push(registry: str, image: str, version: str):
     if version is None:
         version = head_of(None, local=True)
@@ -193,9 +226,10 @@ def push(registry: str, image: str, version: str):
 
 
 @cli.command()
-@click.option('--name', help='Deployment name.', required=True)
+@click.option('--name', help='Deployment name.',
+              envvar=KUBEDEPLOY_NAME, required=True)
 @click.option('--namespace', help='Namespace in the cluster.',
-              default='default')
+              envvar=KUBEDEPLOY_NAMESPACE, default='default')
 def info(name: str, namespace: str):
     kube = Kube(namespace=namespace,
                 deployment_name=name,
@@ -206,10 +240,10 @@ def info(name: str, namespace: str):
 
 @cli.command()
 @click.option('--namespace', help='Namespace in the cluster.',
-              default='default')
+              envvar=KUBEDEPLOY_NAMESPACE, default='default')
 @click.option('--group',
               help='Value of the servicegroup selector to select by.',
-              default='twyla')
+              envvar=KUBEDEPLOY_GROUP, default='twyla')
 @click.option('--dump-to',
               help='Dump cluster info into kubectl compatible yaml file',
               default=None)

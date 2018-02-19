@@ -109,6 +109,48 @@ or configuration.
 This will apply the list to the other cluster. The count of replicas will be
 preserved on the target cluster if the deployment exists.
 
+
+### Configuration Files
+
+All examples until here used command line arguments to configure the behavior of
+`kubedeploy`. To make the work flow more convenient when using the tool a lot,
+configuration files can be used.
+
+By convention `kubedeploy` looks for a file named `kubedeploy.yml` in the
+working directory and loads it before parsing the command line arguments. The
+configuration is a list of key-value pairs in YAML format where they names of
+the keys are equivalent to the command line argument names.
+
+The following command line arguments can be used in the configuration file:
+
+    --name
+    --namespace
+    --image
+    --registry
+    --group
+    --branch
+    --version
+
+Some arguments have to be used explicitly still:
+
+    --local
+    --dry
+    --dump-to
+    --from-file
+
+Example:
+
+    # Name of the Kubernetes deployment
+    name: my-service
+    # Namespace in Kubernetes
+    namespace: default
+    # Registry and image names. Will be combined to:
+    # my-private-reg/service-one:<generated-version>
+    registry: my-private-reg
+    image: service-one
+    group: twyla
+
+
 ## Known Bugs
 
 - limited keyring support (should work on MacOS though)
