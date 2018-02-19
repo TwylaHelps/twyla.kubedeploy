@@ -2,8 +2,6 @@ import functools
 import json
 import subprocess
 
-import yaml
-
 
 class KubectlCallFailed(Exception):
     pass
@@ -28,7 +26,6 @@ class Kubectl:
 
 
     def _call(self, command, expect_json=True):
-        print(' '.join(command))
         try:
             proc = subprocess.run(
                 command,
