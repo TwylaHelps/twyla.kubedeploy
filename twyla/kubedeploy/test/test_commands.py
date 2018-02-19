@@ -78,7 +78,7 @@ class DeployCommandTests(unittest.TestCase):
         mock_repo.git.rev_parse.return_value = ['HEAD']
         ref = mock.MagicMock()
         ref.name = 'origin/feat/test'
-        ref.commit = 'commitish'
+        ref.commit = commitish
         origin = mock.MagicMock()
         origin.name = 'origin'
         origin.refs = [ref]
@@ -90,7 +90,7 @@ class DeployCommandTests(unittest.TestCase):
                                   branch=test_branch)
 
         mock_git.Repo.assert_called_once_with(test_dir)
-        mock_repo.git.rev_parse.assert_called_once_with('commitish', short=8)
+        mock_repo.git.rev_parse.assert_called_once_with(commitish, short=8)
         origin.fetch.assert_called_once_with()
 
         assert head == ['HEAD']
