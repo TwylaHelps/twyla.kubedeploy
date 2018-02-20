@@ -282,7 +282,7 @@ class KubectlTest(unittest.TestCase):
     }
 }
         ''')
-        dep1 = '''{
+        dep1 = json.loads('''{
    "apiVersion":"extensions/v1beta1",
    "kind":"Deployment",
    "metadata":{
@@ -399,8 +399,8 @@ class KubectlTest(unittest.TestCase):
       "replicas":1,
       "updatedReplicas":1
    }
-}'''
-        dep2 = '''{
+}''')
+        dep2 = json.loads('''{
    "apiVersion":"extensions/v1beta1",
    "kind":"Deployment",
    "metadata":{
@@ -517,7 +517,7 @@ class KubectlTest(unittest.TestCase):
       "replicas":3,
       "updatedReplicas":3
    }
-}'''
+}''')
         mock_call.side_effect = [
             dep1,
             dep2

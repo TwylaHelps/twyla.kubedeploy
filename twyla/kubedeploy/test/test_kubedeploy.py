@@ -199,11 +199,12 @@ spec:
 
         kube.print_deployment_info('tester', deployment)
 
-        assert printer.call_count == 3
-        (one, two, three) = printer.call_args_list
+        assert printer.call_count == 4
+        (one, two, three, four) = printer.call_args_list
         assert one == mock.call('tester:')
-        assert two == mock.call('image: my-test-image:ver002')
-        assert three == mock.call('    replicas: 3/4')
+        assert two == mock.call('  name: ')
+        assert three == mock.call('  image: my-test-image:ver002')
+        assert four == mock.call('  replicas: 3/4')
 
 
     @mock.patch('twyla.kubedeploy.kube.Kube.print_deployment_info')
