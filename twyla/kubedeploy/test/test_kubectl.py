@@ -96,6 +96,19 @@ class KubectlTest(unittest.TestCase):
 
 
     @mock.patch('twyla.kubedeploy.kubectl.Kubectl._call')
+    def test_list_deployments_sorted(self, mock_call):
+        expected = ['get', 'deployments', '-o', 'json',
+                    '--sort-by', 'something']
+        expected_call = ['kubectl', '--namespace', 'test-space']
+        expected_call.extend(expected)
+        kubectl = Kubectl()
+        kubectl.namespace = 'test-space'
+        kubectl.list_deployments(sort_by='something')
+
+        mock_call.assert_called_once_with(expected_call)
+
+
+    @mock.patch('twyla.kubedeploy.kubectl.Kubectl._call')
     def test_list_deployments_by_selector(self, mock_call):
         expected = ['get', 'deployments', '--selector',
                     'servicegroup=twyla,mylabel=myvalue', '-o', 'json']

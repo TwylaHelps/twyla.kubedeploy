@@ -267,7 +267,8 @@ def cluster_info(dump_to: str, group: str, namespace: str):
     kubectl = Kubectl()
     kubectl.namespace = namespace
 
-    state = kubectl.list_deployments(selectors={'servicegroup': group})
+    state = kubectl.list_deployments(selectors={'servicegroup': group},
+                                     sort_by='metadata.name')
     print_cluster_info(state)
 
     if dump_to is not None:

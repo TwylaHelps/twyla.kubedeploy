@@ -578,8 +578,10 @@ key3:
             print(''.join(traceback.format_exception(*result.exc_info)))
             self.fail()
 
-        mock_cluster_info.assert_called_once_with('deployments', selectors={
-            'servicegroup': 'twyla'})
+        mock_cluster_info.assert_called_once_with(
+            'deployments',
+            selectors={'servicegroup': 'twyla'},
+            sort_by='metadata.name')
 
 
     def test_scrub_cluster_info(self):
@@ -858,8 +860,10 @@ key3:
             print(''.join(traceback.format_exception(*result.exc_info)))
             self.fail()
 
-        mock_list.assert_called_once_with('deployments', selectors={
-            'servicegroup': 'twyla'})
+        mock_list.assert_called_once_with(
+            'deployments',
+            selectors={'servicegroup': 'twyla'},
+            sort_by='metadata.name')
 
         with open(tmp.name) as fd:
             content = fd.read()

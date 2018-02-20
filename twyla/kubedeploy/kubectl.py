@@ -52,12 +52,16 @@ class Kubectl:
         return self._call(self._make_command(args))
 
 
-    def _list_entities(self, entity, selectors=None, expect_json=True):
+    def _list_entities(self, entity, selectors=None,
+                       expect_json=True, sort_by=None):
         args = ['get', entity]
         args.extend(self._make_selector_args(selectors))
 
         if expect_json:
             args.extend(['-o', 'json'])
+        if sort_by:
+            args.extend(['--sort-by', sort_by])
+
         return self._call(self._make_command(args))
 
 
