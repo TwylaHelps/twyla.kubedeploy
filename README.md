@@ -118,8 +118,8 @@ configuration files can be used.
 
 By convention `kubedeploy` looks for a file named `kubedeploy.yml` in the
 working directory and loads it before parsing the command line arguments. The
-configuration is a list of key-value pairs in YAML format where they names of
-the keys are equivalent to the command line argument names.
+configuration is a list of key-value pairs in YAML format where the names of the
+keys are equivalent to the command line argument names.
 
 The following command line arguments can be used in the configuration file:
 
