@@ -158,7 +158,7 @@ def cli(ctx: click.Context):
               envvar=KUBEDEPLOY_VERSION)
 @click.option('--variants', help='Variants are a comma separated list of '
                                  'strings that can be used in template '
-                                 'condintionals.',
+                                 'conditionals.',
               envvar=KUBEDEPLOY_VARIANTS)
 @click.option('--dry/--no-dry', help='Run without building, pushing, and'
               ' deploying anything',

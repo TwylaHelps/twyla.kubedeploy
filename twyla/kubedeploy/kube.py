@@ -17,14 +17,14 @@ class Kube:
                  printer: Callable[[str], int],
                  error_printer: Callable[[str], int],
                  deployment_template: str=None,
-                 variants: List[str]=[]):
+                 variants: List[str]=None):
         self.printer = printer
         self.error_printer = error_printer
         self.deployment_name = deployment_name
         self.deployment_template = deployment_template or 'deployment.yml'
         self.kubectl = Kubectl()
         self.kubectl.namespace = namespace
-        self.variants = variants
+        self.variants = variants or []
 
 
     def get_remote_deployment(self):
@@ -61,10 +61,11 @@ class Kube:
 
         info_template = Template('''
 {{ meta.title }}:
-{% for c in deployment.spec.template.spec.containers -%}
-    image: {{ c.image }}
-    replicas: {{ deployment.status.readyReplicas }}/{{ deployment.status.replicas }}
-{%- endfor -%}
+{% for c in deployment.spec.template.spec.containers %}
+  name: {{ c.name }}
+  image: {{ c.image }}
+{% endfor %}
+  replicas: {{ deployment.status.readyReplicas }}/{{ deployment.status.replicas -}}
         ''')
 
         rendered = info_template.render(meta={'name': self.deployment_name,
