@@ -99,6 +99,10 @@ class Kubectl:
             # limited sense as only one namespace is supported for dumping the
             # file in the first place. It is nontheless required at least once.
             self.namespace = namespace
-            remote = json.loads(self.get_deployment(name))
-
-            deployment['spec']['replicas'] = remote['spec']['replicas']
+            try:
+                remote = self.get_deployment(name)
+                deployment['spec']['replicas'] = remote['spec']['replicas']
+            except KubectlCallFailed:
+                # Just use the replicas defined in the definition if there are
+                # problems getting the remote count.
+                pass
