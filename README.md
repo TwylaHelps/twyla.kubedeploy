@@ -72,17 +72,42 @@ To get information about the currently deployed image for a particular deploymen
 
 The namespace will default to `default`.
 
+### Deployment templates
+
+The template format is Jinja2 and the configuration is being made available as
+`data` dictionary. Example data structure:
+
+    data = {
+        'name': 'mydeployment',
+        'namespace': 'default',
+        'image': 'my-registry/myimage:version',
+        'replicas': 10,
+        'variants': ['de', 'en']
+    }
+
+Example template:
+
+    apiVersion: v1
+    kind: Deployment
+    metadata:
+      labels:
+        app: {{ data.name }}
+      namespace: {{ data.namespace }}
+    template:
+      spec:
+        replicas: {{ data.replicas if data.replicas else 10 }}
+        ...
+
 ### Deploying A Service
 
 By default the deployment will be done based on an existing deployment. Only the
 image will be updated just like running `kubectl edit deployment <name>` and
 replacing the image.
 
-In case no deployment exists a file `deployment.yml` in the current working
-directory will be used as base, the image and namespace will be updated, and the
-result will be sent to the Kubernetes API. The result is the same as calling
-`kubectl apply -f <result>`. To make sure the deployment is correct use the
-`--dry` switch first.
+Deployments will be created from a file `deployment.yml` in the current working
+directory, and the result will be sent to the Kubernetes API. The result is the
+same as calling `kubectl apply -f <result>`. To make sure the deployment is
+correct use the `--dry` switch first.
 
     $ kubedeploy deploy --registry <your-registry-domain> \
                         --image <service> \
@@ -108,7 +133,6 @@ or configuration.
 
 This will apply the list to the other cluster. The count of replicas will be
 preserved on the target cluster if the deployment exists.
-
 
 ### Configuration Files
 

@@ -3,6 +3,7 @@ import os
 import shutil
 import sys
 import tempfile
+from typing import List
 
 import click
 import git
@@ -129,6 +130,8 @@ def set_config(config_file):
             config = yaml.load(fd)
 
     for key, value in config.items():
+        if isinstance(value, list):
+            value = (','.join(value))
         os.environ[f'KUBEDEPLOY_{key.upper()}'] = value
 
 
@@ -153,6 +156,10 @@ def cli(ctx: click.Context):
 @click.option('--version', help='Version of API to build and deploy. Will'
                                 'replace if it already exists.',
               envvar=KUBEDEPLOY_VERSION)
+@click.option('--variants', help='Variants are a comma separated list of '
+                                 'strings that can be used in template '
+                                 'condintionals.',
+              envvar=KUBEDEPLOY_VARIANTS)
 @click.option('--dry/--no-dry', help='Run without building, pushing, and'
               ' deploying anything',
               default=False)
@@ -161,17 +168,22 @@ def cli(ctx: click.Context):
               ' image.',
               default=False)
 def deploy(registry: str, image: str, name: str, namespace: str, branch: str,
-           version: str, local: bool, dry: bool):
+           version: str, variants: str, local: bool, dry: bool):
     working_directory = os.getcwd()
     if local:
         # Reset branch when using local.
         branch = None
     if version is None:
         version = head_of(working_directory, branch, local=local)
+
+    if variants is not None:
+        variants = preprocess_variants(variants)
+
     kube = Kube(namespace=namespace,
                 deployment_name=image,
                 printer=prompt,
-                error_printer=error_prompt)
+                error_printer=error_prompt,
+                variants=variants)
     tag = docker_helpers.make_tag(registry, image, version)
     if local and not dry:
         download_requirements()
@@ -190,6 +202,10 @@ def deploy(registry: str, image: str, name: str, namespace: str, branch: str,
         return
 
     kube.apply(tag)
+
+
+def preprocess_variants(variants: str) -> List[str]:
+    return [variant.strip() for variant in variants.split(',')]
 
 
 @cli.command()

@@ -1,5 +1,5 @@
 import tempfile
-from typing import Callable
+from typing import Callable, List
 
 from jinja2 import Environment, Template, FileSystemLoader
 
@@ -16,13 +16,15 @@ class Kube:
                  deployment_name: str,
                  printer: Callable[[str], int],
                  error_printer: Callable[[str], int],
-                 deployment_template: str=None):
+                 deployment_template: str=None,
+                 variants: List[str]=[]):
         self.printer = printer
         self.error_printer = error_printer
         self.deployment_name = deployment_name
         self.deployment_template = deployment_template or 'deployment.yml'
         self.kubectl = Kubectl()
         self.kubectl.namespace = namespace
+        self.variants = variants
 
 
     def get_remote_deployment(self):
@@ -97,6 +99,7 @@ class Kube:
             'name': self.deployment_name,
             'namespace': self.kubectl.namespace,
             'replicas': replicas,
+            'variants': self.variants
         }
 
         rendered = template.render(data=data)
