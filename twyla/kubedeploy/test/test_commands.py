@@ -142,6 +142,9 @@ class DeployCommandTests(unittest.TestCase):
         config = b'''
 key1: val1
 key2: val2
+key3:
+- en
+- de
         '''
         tmp_file = tempfile.NamedTemporaryFile(delete=False)
         tmp_file.write(config)
@@ -151,6 +154,7 @@ key2: val2
 
         assert os.environ['KUBEDEPLOY_KEY1'] == 'val1'
         assert os.environ['KUBEDEPLOY_KEY2'] == 'val2'
+        assert os.environ['KUBEDEPLOY_KEY3'] == 'en,de'
 
 
     @mock.patch('twyla.kubedeploy.docker_helpers.docker_image_exists')
@@ -170,7 +174,9 @@ key2: val2
                                                    '--name',
                                                    'test-deployment',
                                                    '--namespace',
-                                                   'anamespace'])
+                                                   'anamespace',
+                                                   '--variants',
+                                                   'de,en'])
         if result.exception:
             print(''.join(traceback.format_exception(*result.exc_info)))
             self.fail()
@@ -183,7 +189,8 @@ key2: val2
             namespace='anamespace',
             deployment_name='test-service',
             printer=kubedeploy.prompt,
-            error_printer=kubedeploy.error_prompt)
+            error_printer=kubedeploy.error_prompt,
+            variants=['de', 'en'])
         kube = mock_Kube.return_value
         kube.apply.assert_called_once_with(
             'myown.private.registry/test-service:githash'
@@ -226,7 +233,8 @@ key2: val2
             namespace='anamespace',
             deployment_name='test-service',
             printer=kubedeploy.prompt,
-            error_printer=kubedeploy.error_prompt)
+            error_printer=kubedeploy.error_prompt,
+            variants=None)
         kube = mock_Kube.return_value
         kube.apply.assert_called_once_with(
             'myown.private.registry/test-service:githash'
@@ -1019,3 +1027,12 @@ output'''
             self.fail()
 
         mock_prompt.assert_called_once_with('some error output')
+
+
+    def test_variant_preprocessing(self):
+        variants = 'de, en , dk '
+        expected = ['de', 'en', 'dk']
+
+        got = kubedeploy.preprocess_variants(variants)
+
+        assert got == expected
