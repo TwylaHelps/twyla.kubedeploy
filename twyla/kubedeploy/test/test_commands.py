@@ -303,7 +303,7 @@ key3:
 
     @mock.patch('twyla.kubedeploy.docker_helpers.open',
                 new=mock.mock_open(read_data=REQUIREMENTS))
-    @mock.patch('twyla.kubedeploy.pip')
+    @mock.patch('twyla.kubedeploy.pip_main')
     @mock.patch('twyla.kubedeploy.os')
     @mock.patch('twyla.kubedeploy.prompt')
     @mock.patch('twyla.kubedeploy.tempfile')
@@ -323,7 +323,7 @@ key3:
 
     @mock.patch('twyla.kubedeploy.docker_helpers.open',
                 new=mock.mock_open(read_data=REQUIREMENTS))
-    @mock.patch('twyla.kubedeploy.pip')
+    @mock.patch('twyla.kubedeploy.pip_main')
     @mock.patch('twyla.kubedeploy.os')
     @mock.patch('twyla.kubedeploy.prompt')
     @mock.patch('twyla.kubedeploy.tempfile')
@@ -333,7 +333,7 @@ key3:
                                                 mock_tempfile,
                                                 mock_prompt,
                                                 mock_os,
-                                                mock_pip):
+                                                mock_pip_main):
         mock_os.path.isfile.return_value = True
         mock_os.path.isdir.return_value = True
         mock_os.path.join.return_value = 'some/joined/path'
@@ -349,7 +349,7 @@ key3:
 
     @mock.patch('twyla.kubedeploy.docker_helpers.open',
                 new=mock.mock_open(read_data=REQUIREMENTS))
-    @mock.patch('twyla.kubedeploy.pip')
+    @mock.patch('twyla.kubedeploy.pip_main')
     @mock.patch('twyla.kubedeploy.os')
     @mock.patch('twyla.kubedeploy.prompt')
     @mock.patch('twyla.kubedeploy.tempfile')
@@ -359,7 +359,7 @@ key3:
                                    mock_tempfile,
                                    mock_prompt,
                                    mock_os,
-                                   mock_pip):
+                                   mock_pip_main):
         mock_os.path.isfile.return_value = True
         mock_os.path.isdir.return_value = False
         mock_os.path.join.return_value = 'some/joined/path'
@@ -368,7 +368,7 @@ key3:
 
         mock_tempfile.mkdtemp.assert_called_once_with()
         mock_prompt.assert_called_once_with('Downloading requirements.')
-        mock_pip.main.assert_called_once_with(
+        mock_pip_main.assert_called_once_with(
             ['download', '-q', '--dest', mock_tempfile.mkdtemp.return_value])
         mock_shutil.move.assert_called_once_with(
             mock_tempfile.mkdtemp.return_value,
@@ -377,7 +377,7 @@ key3:
 
     @mock.patch('twyla.kubedeploy.docker_helpers.open',
                 new=mock.mock_open(read_data=REQUIREMENTS))
-    @mock.patch('twyla.kubedeploy.pip')
+    @mock.patch('twyla.kubedeploy.pip_main')
     @mock.patch('twyla.kubedeploy.os')
     @mock.patch('twyla.kubedeploy.prompt')
     @mock.patch('twyla.kubedeploy.tempfile')
@@ -387,7 +387,7 @@ key3:
                                          mock_tempfile,
                                          mock_prompt,
                                          mock_os,
-                                         mock_pip):
+                                         mock_pip_main):
         mock_os.path.isfile.return_value = True
         mock_os.path.isdir.return_value = True
         mock_os.path.join.return_value = 'some/joined/path'
@@ -402,7 +402,7 @@ key3:
             mock.call('Downloading requirements.'),
         ])
 
-        mock_pip.main.assert_called_once_with(
+        mock_pip_main.assert_called_once_with(
             ['download', '-q', '--dest', mock_tempfile.mkdtemp.return_value])
         mock_shutil.move.assert_called_once_with(
             mock_tempfile.mkdtemp.return_value,

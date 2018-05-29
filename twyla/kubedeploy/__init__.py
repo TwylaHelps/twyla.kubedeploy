@@ -7,8 +7,14 @@ from typing import List
 
 import click
 import git
-import pip
 import yaml
+
+try:
+    # noinspection PyProtectedMember
+    from pip._internal import main as pip_main
+except ImportError:
+    # we are using pip 9.0.3 or earlier
+    from pip import main as pip_main
 
 from twyla.kubedeploy import docker_helpers
 from twyla.kubedeploy.kube import Kube
@@ -52,7 +58,7 @@ def download_requirements(force: bool=False):
     prompt('Downloading requirements.')
     with open('requirements.txt') as f:
         deps = [line for line in f if line.startswith('git+ssh')]
-    pip.main(['download', '-q', '--dest', tmp, *deps])
+    pip_main(['download', '-q', '--dest', tmp, *deps])
     shutil.move(tmp, dest)
 
 
