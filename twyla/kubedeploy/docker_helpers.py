@@ -5,6 +5,8 @@ from subprocess import PIPE, STDOUT, Popen
 
 import docker
 import docker_registry_client as registry
+from requests import HTTPError
+
 from twyla.kubedeploy.prompt import prompt
 
 MACOS_KEYCHAIN_CMD = ['security', 'find-internet-password', '-l',
@@ -70,5 +72,13 @@ def docker_image_exists(tag: str) -> bool:
     client = registry.DockerRegistryClient("https://{}".format(domain_part),
                                            username=username,
                                            password=password)
+    repository = client.repository(repository)
 
-    return version in client.repository(repository).tags()
+    try:
+        repository.manifest(version)
+        return True
+    except HTTPError as e:
+        if e.response.status_code != 404:
+            raise
+
+    return False

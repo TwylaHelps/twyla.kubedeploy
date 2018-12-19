@@ -3,8 +3,11 @@ import json
 import unittest
 from subprocess import PIPE, STDOUT
 from unittest import mock
+from unittest.mock import Mock
 
 import pytest
+from requests import HTTPError
+
 from twyla.kubedeploy import docker_helpers
 
 DOCKER_CREDENTIALS = "tim_toddler:crappy password"
@@ -47,14 +50,14 @@ class DockerTests(unittest.TestCase):
     @mock.patch('twyla.kubedeploy.docker_helpers.registry')
     def test_docker_image_exists(self, mock_registry):
         mock_client = mock_registry.DockerRegistryClient.return_value
-        mock_client.repository.return_value.tags.return_value = ['678fg', '123gf']
+        mock_client.repository.return_value.manifest.return_value = Mock()
         exists = docker_helpers.docker_image_exists('myown.private.registry/the-service:678fg')
         assert exists
         mock_registry.DockerRegistryClient.assert_called_once_with(
             "https://myown.private.registry",
             username="tim_toddler",
             password="crappy password")
-        mock_client.repository.assert_called_once_with("the-service")
+        mock_client.repository.assert_called_once_with("678fg")
 
 
     @mock.patch('twyla.kubedeploy.docker_helpers.open',
@@ -62,7 +65,8 @@ class DockerTests(unittest.TestCase):
     @mock.patch('twyla.kubedeploy.docker_helpers.registry')
     def test_docker_image_exists(self, mock_registry):
         mock_client = mock_registry.DockerRegistryClient.return_value
-        mock_client.repository.return_value.tags.return_value = ['123gf']
+        mock_client.repository.return_value.manifest.side_effect = \
+            HTTPError(response=Mock(status_code=404))
         exists = docker_helpers.docker_image_exists('myown.private.registry/the-service:678fg')
         assert not exists
 
@@ -89,7 +93,7 @@ class DockerTests(unittest.TestCase):
     @mock.patch('twyla.kubedeploy.docker_helpers.get_macos_credentials')
     def test_docker_image_exists_on_macos(self, mock_credentials, mock_client):
         mock_credentials.return_value = 'tim_toddler', 'mysecret'
-        mock_client.repository.return_value.tags.return_value = ['678fg', '123gf']
+        mock_client.repository.return_value.manifest.return_value = Mock()
         exists = docker_helpers.docker_image_exists(
             'myown.private.registry/the-service:678fg')
         mock_credentials.assert_called_once_with('myown.private.registry')
