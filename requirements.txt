@@ -19,9 +19,9 @@ py==1.5.2
 pytest==3.4.0
 pytest-cov==2.5.1
 PyYAML==3.12
-requests==2.18.4
+requests>=2.18.4
 six==1.11.0
 smmap2==2.0.3
-urllib3==1.22
+urllib3>=1.22
 websocket-client==0.46.0
 -e .
